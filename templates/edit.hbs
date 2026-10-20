@@ -1,0 +1,18 @@
+<div class="pim-edit">
+  <div class="form-group"><label>{{localize "PIM.Name"}}</label><input type="text" name="name" value="{{h.name}}"></div>
+  <div class="form-group"><label>{{localize "PIM.Image"}}</label><file-picker name="img" type="image" value="{{h.img}}"></file-picker></div>
+  <div class="form-group"><label>{{localize "PIM.Description"}}</label><textarea name="desc" rows="2">{{h.desc}}</textarea></div>
+  <div class="form-group"><label>{{localize "PIM.Kind"}}</label><input type="text" name="kind" value="{{h.kind}}"></div>
+  <div class="form-group"><label>{{localize "PIM.Income"}}</label><input type="text" name="income" value="{{h.income}}"></div>
+  <div class="form-group"><label>{{localize "PIM.Upkeep"}}</label><input type="text" name="upkeep" value="{{h.upkeep}}"></div>
+  <p class="hint">{{localize "PIM.IncomeHint"}}</p>
+  <div class="form-group"><label>{{localize "PIM.EventChance"}}</label><input type="number" name="eventChance" min="0" max="100" value="{{h.eventChance}}"></div>
+  <fieldset><legend>{{localize "PIM.Shares"}}</legend>
+    {{#each users}}<label class="pim-chk">{{name}} <input type="number" min="0" max="100" name="share.{{id}}" value="{{share}}">%</label>{{/each}}
+  </fieldset>
+  <div class="form-group stacked"><label>{{localize "PIM.Stats"}}</label><textarea name="stats" rows="3">{{stats}}</textarea><p class="hint">{{localize "PIM.StatsHint"}}</p></div>
+  <div class="form-group stacked"><label>{{localize "PIM.Units"}}</label><textarea name="units" rows="3">{{units}}</textarea><p class="hint">{{localize "PIM.UnitsHint"}}</p></div>
+  <div class="form-group stacked"><label>{{localize "PIM.Events"}}</label><textarea name="events" rows="5">{{events}}</textarea><p class="hint">{{localize "PIM.EventsHint"}}</p></div>
+  <div class="form-group stacked"><label>{{localize "PIM.Upgrades"}}</label><textarea name="upgrades" rows="4">{{upgrades}}</textarea></div>
+  <footer class="form-footer"><button type="submit"><i class="fa-solid fa-save"></i> {{localize "PIM.Save"}}</button></footer>
+</div>

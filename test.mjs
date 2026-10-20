@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import { passive, effects, credit } from './src/logic.js';
+const h = { shares: { a: 50, b: 30 }, bal: {}, fund: 0, stats: [{ name: 'Moral', value: 50, perPoint: 0, max: 60 }, { name: 'Pob', value: 10, perPoint: 0.5, max: 0 }], units: [{ count: 5, income: 0, upkeep: 2 }] };
+credit(h, 100);
+assert.deepEqual([h.bal.a, h.bal.b, h.fund], [50, 30, 20]);
+credit(h, -1000);
+assert.deepEqual([h.bal.a, h.bal.b, h.fund], [0, 0, 0]);
+assert.equal(passive(h), 5 - 10);
+effects(h, 'moral+20;Pob-99;nada+1');
+assert.deepEqual([h.stats[0].value, h.stats[1].value], [60, 0]);
+console.log('ok');

@@ -1,0 +1,14 @@
+{
+  "id": "passive-income-mgk",
+  "title": "Passive Income MGK",
+  "description": "System-agnostic holdings (quarry, tavern...) that earn passive income, trigger timed events players must attend, and unlock GM-approved upgrades.",
+  "version": "1.0.0",
+  "authors": [{ "name": "MGK" }],
+  "compatibility": { "minimum": "14", "verified": "14.364", "maximum": "14.999" },
+  "esmodules": ["dist/passive-income-mgk.js"],
+  "styles": ["dist/passive-income-mgk.css"],
+  "languages": [
+    { "lang": "en", "name": "English", "path": "lang/en.json" },
+    { "lang": "es", "name": "Español", "path": "lang/es.json" }
+  ]
+}

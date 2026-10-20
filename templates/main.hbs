@@ -1,0 +1,57 @@
+<section class="pim">
+  {{#if isGM}}<header class="pim-bar">
+    <button type="button" data-action="create"><i class="fa-solid fa-plus"></i> {{localize "PIM.New"}}</button>
+    <button type="button" data-action="tick"><i class="fa-solid fa-forward"></i> {{localize "PIM.Tick"}}</button>
+  </header>{{/if}}
+  {{#each holdings as |h|}}
+  <article class="pim-card" data-id="{{h.id}}">
+    <div class="pim-head">
+      <img src="{{h.img}}" alt="">
+      <div>
+        <h3>{{h.name}} {{#if h.kind}}<small>({{h.kind}})</small>{{/if}}</h3>
+        <small>{{localize "PIM.Income"}}: {{h.incomeTxt}}{{#if h.upkeep}} − {{h.upkeep}}{{/if}} {{../cur}}<br>
+        {{localize "PIM.Fund"}}: <b>{{h.fund}}</b> · {{localize "PIM.Mine"}}: <b>{{h.mine}}</b> {{../cur}} · {{h.sharesTxt}}{{#if h.passive}} · {{localize "PIM.Passive"}}: {{h.passive}}{{/if}}</small>
+      </div>
+      <div class="pim-btns">
+        <button type="button" data-action="collect" {{#unless h.mine}}disabled{{/unless}}>{{localize "PIM.Collect"}}</button>
+        {{#if ../isGM}}
+        <button type="button" data-action="fire" title="{{localize "PIM.Fire"}}"><i class="fa-solid fa-bolt"></i></button>
+        <button type="button" data-action="edit" title="{{localize "PIM.Edit"}}"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="remove" title="{{localize "PIM.Delete"}}"><i class="fa-solid fa-trash"></i></button>
+        {{/if}}
+      </div>
+    </div>
+    {{#if h.desc}}<p>{{h.desc}}</p>{{/if}}
+    {{#if h.stats.length}}<div class="pim-stats">{{#each h.stats}}<span class="pim-chip">{{name}}: <b>{{value}}{{#if max}}/{{max}}{{/if}}</b></span>{{/each}}</div>{{/if}}
+    {{#if h.units.length}}<ul class="pim-units">
+      {{#each h.units as |u|}}<li data-i="{{@index}}">
+        <span><b>{{u.name}}</b> ×{{u.count}}{{#if u.max}}/{{u.max}}{{/if}} <small>(−{{u.upkeep}} +{{u.income}} {{../../cur}})</small></span>
+        <span>
+          <button type="button" data-action="dismiss" {{#unless u.count}}disabled{{/unless}}><i class="fa-solid fa-minus"></i></button>
+          <button type="button" data-action="hire" {{#unless u.canHire}}disabled{{/unless}} title="{{u.hire}} {{../../cur}}"><i class="fa-solid fa-plus"></i> {{u.hire}}</button>
+        </span>
+      </li>{{/each}}
+    </ul>{{/if}}
+    {{#if h.pending}}
+    <div class="pim-event {{h.pending.kind}}">
+      <b>{{localize "PIM.Pending"}}: {{h.pending.title}}</b>
+      <p>{{h.pending.text}}</p>
+      <button type="button" data-action="attend">{{localize "PIM.Attend"}}</button>
+    </div>
+    {{/if}}
+    <ul class="pim-up">
+      {{#each h.upgrades as |u|}}{{#if u.show}}
+      <li data-uid="{{u.id}}" class="{{#if u.done}}done{{/if}}">
+        <span><b>{{u.name}}</b> (+{{u.bonus}}) — {{u.cost}} {{../../cur}}<br><small>{{u.desc}}</small></span>
+        {{#if u.done}}<em>{{localize "PIM.Done"}}</em>
+        {{else if u.left}}<em>{{localize "PIM.Building"}}: {{u.left}}</em>
+        {{else}}
+          {{#if u.offered}}{{#unless u.left}}<button type="button" data-action="buy" {{#unless u.afford}}disabled title="{{localize "PIM.NoFunds"}}"{{/unless}}>{{localize "PIM.Buy"}}</button>{{/unless}}{{/if}}
+          {{#if ../../isGM}}<button type="button" data-action="offer">{{#if u.offered}}{{localize "PIM.Withdraw"}}{{else}}{{localize "PIM.Offer"}}{{/if}}</button>{{/if}}
+        {{/if}}
+      </li>
+      {{/if}}{{/each}}
+    </ul>
+  </article>
+  {{else}}<p>{{localize "PIM.None"}}</p>{{/each}}
+</section>
