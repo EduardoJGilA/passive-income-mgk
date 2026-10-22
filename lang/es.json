@@ -116,6 +116,9 @@
       "currencyPathHint": "ej. system.currency.gp. Vacío = cobrar solo se anuncia en el chat.",
       "coins": "Denominaciones (opcional)",
       "coinsHint": "Reemplaza la ruta de arriba. Formato etiqueta=ruta:razón;... con la unidad base en razón 1, ej. gp=system.currency.gp:1;sp=system.currency.sp:0.1;cp=system.currency.cp:0.01"
-    }
+    },
+    "NoGM": "Se necesita un GM conectado para esta acción.",
+    "NoEvents": "No hay eventos elegibles (revisa condiciones y estación).",
+    "OverShare": "Las participaciones sumaban más de 100%: se ajustaron."
   }
 }

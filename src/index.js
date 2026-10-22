@@ -24,7 +24,9 @@ const get = () => foundry.utils.deepClone(set('holdings')).map(h => ({
   fund: h.balance ?? 0, stats: [], units: [], upgrades: [], events: [], log: [], income: '0', upkeep: '0', eventChance: 0, seasons: '', value: 0, pending: null, ...h,
   shares: byActor(h.shares ?? Object.fromEntries((h.owners ?? []).map(u => [u, Math.floor(100 / h.owners.length)]))), bal: byActor(h.bal)
 }));
-async function mutate(fn) { const d = get(); await fn(d); await game.settings.set(ID, 'holdings', d); }
+// serialized read-modify-write: ops await rolls/chat, so concurrent ones would overwrite each other
+let queue = Promise.resolve();
+const mutate = fn => (queue = queue.catch(() => {}).then(async () => { const d = get(); await fn(d); await game.settings.set(ID, 'holdings', d); }));
 
 // a user acts on a holding if GM or owner of any actor holding a share
 const ctl = (a, u) => game.actors.get(a)?.testUserPermission(game.users.get(u), 'OWNER');
@@ -34,7 +36,7 @@ const who = (h, u) => Object.keys(h.shares).find(a => ctl(a, u)) ?? Object.keys(
 const say = (content, h) => {
   h.log.unshift({ at: stamp(), text: content });
   h.log.length = Math.min(h.log.length, 40);
-  return ChatMessage.create({ content, whisper: game.users.filter(u => owns(h, u.id)).map(u => u.id) });
+  return ChatMessage.create({ content: esc(content), whisper: game.users.filter(u => owns(h, u.id)).map(u => u.id) });
 };
 
 async function pay(actorId, n) {
@@ -50,9 +52,9 @@ async function pay(actorId, n) {
 const eligible = h => h.events.filter(e => check(h, e.cond) && okSeason(e.season, season()));
 const draw = (h, ev) => {
   ev ??= pick(eligible(h));
-  if (!ev) return;
+  if (!ev) return false;
   h.pending = { ...ev, left: +ev.deadline || 1 };
-  return say(t('NewEvent', { name: h.name, title: ev.title }), h);
+  return say(t('NewEvent', { name: h.name, title: ev.title }), h).then(() => true);
 };
 
 const ops = {
@@ -75,7 +77,7 @@ const ops = {
       }
     });
   },
-  fire: id => mutate(async d => { const h = d.find(x => x.id === id); if (h) await draw(h); }),
+  fire: id => mutate(async d => { const h = d.find(x => x.id === id); if (h && !await draw(h)) ui.notifications.warn(t('NoEvents')); }),
   offer: (id, { uid }) => mutate(d => { const u = d.find(x => x.id === id)?.upgrades.find(x => x.id === uid); if (u) u.offered = !u.offered; }),
   attend: (id, _, user) => mutate(async d => {
     const h = d.find(x => x.id === id);
@@ -142,6 +144,7 @@ const GM_ONLY = new Set(['tick', 'fire', 'offer', 'sell']);
 function request(action, id, data = {}) {
   if (game.user.isGM) return ops[action](id, data, game.user.id);
   if (GM_ONLY.has(action)) return;
+  if (!game.users.activeGM) return ui.notifications.warn(t('NoGM'));
   game.socket.emit(`module.${ID}`, { action, id, data, user: game.user.id });
 }
 
@@ -237,9 +240,11 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
     try {
       const o = JSON.parse(await foundry.utils.readTextFromFile(file));
       if (!o.name) throw new Error('name');
+      const arr = k => (Array.isArray(o[k]) ? o[k] : []);
       await mutate(d => d.push({
-        ...o, id: foundry.utils.randomID(), fund: 0, bal: {}, shares: {}, pending: null, log: [],
-        upgrades: (o.upgrades ?? []).map(u => ({ ...u, id: foundry.utils.randomID(), offered: false, done: false, left: 0 }))
+        name: String(o.name), img: o.img, desc: o.desc, kind: o.kind, income: o.income, upkeep: o.upkeep, eventChance: o.eventChance, seasons: o.seasons, value: o.value,
+        stats: arr('stats'), units: arr('units'), events: arr('events'), id: foundry.utils.randomID(), fund: 0, bal: {}, shares: {}, pending: null, log: [],
+        upgrades: arr('upgrades').map(u => ({ ...u, id: foundry.utils.randomID(), offered: false, done: false, left: 0 }))
       }));
     } catch { ui.notifications.error(t('ImportErr')); }
   }
@@ -271,7 +276,7 @@ const field = (sec, c, v) => `<label class="pim-f" style="grid-column:span ${c.s
   c.type === 'select'
     ? `<select data-k="${c.k}">${c.opts().map(([val, lab]) => `<option value="${esc(val)}" ${val == v ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`
     : `<input data-k="${c.k}" type="${c.type}" ${c.type === 'number' ? 'step="any"' : ''} value="${esc(v)}">`}</label>`;
-const row = (sec, o) => `<div class="pim-tr">${SECS[sec].map(c => field(sec, c, o?.[c.k] ?? c.def ?? '')).join('')}<button type="button" data-action="delRow" title="${t('Delete')}"><i class="fa-solid fa-trash"></i></button></div>`;
+const row = (sec, o) => `<div class="pim-tr">${o?.id ? `<input type="hidden" data-k="id" value="${esc(o.id)}">` : ''}${SECS[sec].map(c => field(sec, c, o?.[c.k] ?? c.def ?? '')).join('')}<button type="button" data-action="delRow" title="${t('Delete')}"><i class="fa-solid fa-trash"></i></button></div>`;
 
 class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
@@ -307,11 +312,15 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const rows = sec => [...form.querySelectorAll(`.pim-rows[data-sec="${sec}"] .pim-tr`)]
       .map(tr => Object.fromEntries([...tr.querySelectorAll('[data-k]')].map(i => [i.dataset.k, i.value])));
     const num = (r, ...ks) => Object.fromEntries(ks.map(k => [k, +r[k] || 0]));
+    const orphans = [];
     await mutate(d => {
       const old = d.find(x => x.id === hid);
       const h = old ?? { id: foundry.utils.randomID(), fund: 0, bal: {}, pending: null, log: [] };
       const shares = {};
       for (const r of rows('owners')) if (r.actor && +r.pct > 0) shares[r.actor] = (shares[r.actor] ?? 0) + +r.pct;
+      const total = sum(Object.values(shares), x => x);
+      if (total > 100) { ui.notifications.warn(t('OverShare')); for (const a in shares) shares[a] = r2(shares[a] * 100 / total); }
+      for (const a of Object.keys(h.shares ?? {})) if (!(a in shares) && h.bal?.[a] > 0) { orphans.push([a, h.bal[a]]); delete h.bal[a]; }
       Object.assign(h, {
         name: f.name, img: f.img, desc: f.desc, kind: f.kind, income: f.income || '0', upkeep: f.upkeep || '0',
         eventChance: +f.eventChance || 0, seasons: f.seasons, value: +f.value || 0, shares,
@@ -319,12 +328,13 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
         units: rows('units').filter(r => r.name).map(r => ({ name: r.name, ...num(r, 'count', 'upkeep', 'income', 'hire', 'max') })),
         events: rows('events').filter(r => r.title).map(r => ({ ...r, ...num(r, 'weight', 'deadline'), amount: r.amount || '0', missed: r.missed || '0' })),
         upgrades: rows('upgrades').filter(r => r.name).map(r => {
-          const p = old?.upgrades.find(u => u.name === r.name);
+          const p = old?.upgrades.find(u => u.id === r.id);
           return { id: p?.id ?? foundry.utils.randomID(), name: r.name, desc: r.desc, fx: r.fx, ...num(r, 'cost', 'bonus', 'time'), offered: p?.offered ?? false, done: p?.done ?? false, left: p?.left ?? 0 };
         })
       });
       if (!old) d.push(h);
     });
+    for (const [a, n] of orphans) await pay(a, n); // owner removed: pay out what they had earned
   }
 }
 

@@ -35,5 +35,14 @@
       "name": "Español",
       "path": "lang/es.json"
     }
-  ]
+  ],
+  "socket": true,
+  "relationships": {
+    "recommends": [
+      {
+        "id": "foundryvtt-simple-calendar-reborn",
+        "type": "module"
+      }
+    ]
+  }
 }

@@ -1,1 +1,1 @@
-{"name":"passive-income-mgk","version":"1.0.0","type":"module","scripts":{"build":"vite build","test":"node test.mjs"},"devDependencies":{"vite":"^5.0.0"}}
+{"name":"passive-income-mgk","version":"1.0.0","type":"module","scripts":{"build":"vite build","test":"node test.mjs && node test/smoke.mjs"},"devDependencies":{"vite":"^5.0.0"}}

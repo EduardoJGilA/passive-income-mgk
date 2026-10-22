@@ -51,3 +51,4 @@
 .pim-tr .pim-f input,.pim-tr .pim-f select{width:100%}
 .pim-tr>button{grid-column:13;grid-row:1;min-height:32px;padding:0}
 .pim-edit .form-footer button{min-height:44px}
+@media (max-width:768px){.pim-tr{grid-template-columns:1fr}.pim-tr .pim-f{grid-column:1/-1!important}.pim-tr>button{grid-column:1;grid-row:auto}}
