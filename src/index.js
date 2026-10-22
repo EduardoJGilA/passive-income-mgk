@@ -212,6 +212,12 @@ Hooks.once('ready', () => {
 });
 
 Hooks.on('simple-calendar-date-time-change', onTime);
+Hooks.on('renderActorDirectory', (_, el) => {
+  if (el.querySelector('.pim-open')) return;
+  const b = Object.assign(document.createElement('button'), { type: 'button', className: 'pim-open', innerHTML: `<i class="fa-solid fa-coins"></i> ${t('Open')}` });
+  b.addEventListener('click', open);
+  el.querySelector('header')?.append(b);
+});
 Hooks.on('getSceneControlButtons', c => {
   c.tokens?.tools && (c.tokens.tools[ID] = { name: ID, title: 'PIM.Open', icon: 'fa-solid fa-coins', button: true, order: 99, onChange: open });
 });
