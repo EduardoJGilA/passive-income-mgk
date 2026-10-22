@@ -1,8 +1,14 @@
 <section class="pim">
   {{#if isGM}}<header class="pim-bar">
     <button type="button" data-action="create"><i class="fa-solid fa-plus"></i> {{localize "PIM.New"}}</button>
+    <button type="button" data-action="import"><i class="fa-solid fa-file-import"></i> {{localize "PIM.Import"}}</button>
     <button type="button" data-action="tick"><i class="fa-solid fa-forward"></i> {{localize "PIM.Tick"}}</button>
   </header>{{/if}}
+  {{#if summary.any}}<div class="pim-banner">
+    {{#if summary.events}}<span><i class="fa-solid fa-bell"></i> {{localize "PIM.BEvents"}}: <b>{{summary.events}}</b></span>{{/if}}
+    {{#if summary.builds}}<span><i class="fa-solid fa-hammer"></i> {{localize "PIM.BBuild"}}: <b>{{summary.builds}}</b></span>{{/if}}
+    {{#if summary.collect}}<span><i class="fa-solid fa-sack-dollar"></i> {{localize "PIM.BCollect"}}: <b>{{summary.collect}} {{cur}}</b></span>{{/if}}
+  </div>{{/if}}
   {{#each holdings as |h|}}
   <article class="pim-card" data-id="{{h.id}}">
     <header class="pim-top">
@@ -19,39 +25,42 @@
       {{#if ../isGM}}<div class="pim-gm">
         <button type="button" data-action="fire" title="{{localize "PIM.Fire"}}"><i class="fa-solid fa-bolt"></i></button>
         <button type="button" data-action="edit" title="{{localize "PIM.Edit"}}"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="export" title="{{localize "PIM.Export"}}"><i class="fa-solid fa-file-export"></i></button>
+        <button type="button" data-action="sell" title="{{localize "PIM.Sell"}}"><i class="fa-solid fa-hand-holding-dollar"></i></button>
         <button type="button" data-action="remove" title="{{localize "PIM.Delete"}}"><i class="fa-solid fa-trash"></i></button>
       </div>{{/if}}
     </header>
 
     {{#if h.pending}}
     <div class="pim-event {{h.pending.kind}}">
-      <div><b>{{localize "PIM.Pending_"}}: {{h.pending.title}}</b><p>{{h.pending.text}}</p></div>
+      <div><b>{{localize "PIM.Pending_"}}: {{h.pending.title}}</b> <small>({{h.pending.left}} {{localize "PIM.PeriodsLeft"}})</small><p>{{h.pending.text}}</p></div>
       <button type="button" data-action="attend">{{localize "PIM.Attend"}}</button>
     </div>
     {{/if}}
 
     <div class="pim-grid">
       <section class="pim-box">
-        <h3>{{localize "PIM.SecOwners"}}</h3>
+        <h3>{{localize "PIM.Sec.owners"}}</h3>
         <ul class="pim-list">
           {{#each h.owners as |o|}}<li data-aid="{{o.id}}">
             <img src="{{o.img}}" alt="">
             <span class="grow"><b>{{o.name}}</b><small>{{o.share}}%</small></span>
             <span class="pim-num">{{o.bal}} {{../../cur}}</span>
             {{#if o.canCollect}}<button type="button" data-action="collect" data-aid="{{o.id}}">{{localize "PIM.Collect"}}</button>{{/if}}
+            {{#if o.canMove}}<button type="button" data-action="transfer" title="{{localize "PIM.Transfer"}}"><i class="fa-solid fa-right-left"></i></button>{{/if}}
           </li>{{/each}}
         </ul>
       </section>
 
       {{#if h.stats.length}}<section class="pim-box">
-        <h3>{{localize "PIM.SecStats"}}</h3>
+        <h3>{{localize "PIM.Sec.stats"}}</h3>
         <ul class="pim-list">
           {{#each h.stats}}<li><span class="grow">{{name}}</span><span class="pim-num">{{value}}{{#if max}} / {{max}}{{/if}}</span></li>{{/each}}
         </ul>
       </section>{{/if}}
 
       {{#if h.units.length}}<section class="pim-box">
-        <h3>{{localize "PIM.SecUnits"}}</h3>
+        <h3>{{localize "PIM.Sec.units"}}</h3>
         <ul class="pim-list">
           {{#each h.units as |u|}}<li data-i="{{@index}}">
             <span class="grow"><b>{{u.name}}</b><small>−{{u.upkeep}} / +{{u.income}} {{../../cur}}</small></span>
@@ -63,11 +72,11 @@
       </section>{{/if}}
 
       <section class="pim-box wide">
-        <h3>{{localize "PIM.SecBuild"}}</h3>
+        <h3>{{localize "PIM.Sec.upgrades"}}</h3>
         <ul class="pim-list">
           {{#each h.upgrades as |u|}}{{#if u.show}}
           <li data-uid="{{u.id}}" class="{{#if u.done}}done{{/if}}">
-            <span class="grow"><b>{{u.name}}</b><small>+{{u.bonus}}/{{localize "PIM.Income"}} · {{u.cost}} {{../../cur}}{{#if u.time}} · {{u.time}}p{{/if}}</small><small>{{u.desc}}</small></span>
+            <span class="grow"><b>{{u.name}}</b><small>+{{u.bonus}} · {{u.cost}} {{../../cur}}{{#if u.time}} · {{u.time}} {{localize "PIM.PeriodsLeft"}}{{/if}}</small>{{#if u.desc}}<small>{{u.desc}}</small>{{/if}}</span>
             {{#if u.done}}<em>{{localize "PIM.Done"}}</em>
             {{else if u.left}}<em>{{localize "PIM.Building"}}: {{u.left}}</em>
             {{else}}
@@ -78,6 +87,11 @@
           {{/if}}{{/each}}
         </ul>
       </section>
+
+      {{#if h.log.length}}<details class="pim-box wide">
+        <summary>{{localize "PIM.Log"}}</summary>
+        <ul class="pim-log">{{#each h.log}}<li><time>{{at}}</time> {{text}}</li>{{/each}}</ul>
+      </details>{{/if}}
     </div>
   </article>
   {{else}}<p class="pim-empty">{{localize "PIM.None"}}</p>{{/each}}
