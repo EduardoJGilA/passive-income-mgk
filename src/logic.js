@@ -38,17 +38,32 @@ export function pick(list, rnd = Math.random) {
   return list.find((_, i) => (r -= w[i]) < 0) ?? list.at(-1);
 }
 
-// "Fall:2;Winter:0.3" -> income multiplier for the season (default 1)
+const seasonMatches = (target, current) => {
+  if (!current) return false;
+  const k = lc(target);
+  const name = typeof current === 'object' ? current.name : current;
+  const idx = typeof current === 'object' ? String(current.index) : null;
+  if (name && k === lc(name)) return true;
+  if (idx && k === idx) return true;
+  const map = { 1: ['spring', 'primavera'], 2: ['summer', 'verano'], 3: ['fall', 'autumn', 'otoño'], 4: ['winter', 'invierno'] };
+  return Boolean(idx && map[idx]?.includes(k));
+};
+
+// "Fall:2;Winter:0.3" or "3:2.5;4:0.3" -> income multiplier for the season (default 1)
 export function seasonMult(str, season) {
-  const e = String(str || '').split(';').map(x => x.split(':')).find(([n]) => season && lc(n) === lc(season));
+  if (!season) return 1;
+  const e = String(str || '').split(';').map(x => x.split(':')).find(([n]) => seasonMatches(n, season));
   return e ? +e[1] || 0 : 1;
 }
-export const okSeason = (list, season) => !lc(list) || !season || String(list).split(',').some(s => lc(s) === lc(season));
+export const okSeason = (list, season) => !lc(list) || !season || String(list).split(',').some(s => seasonMatches(s, season));
 
-// split n between owners by share %; remainder -> fund
+// split n between owners by share %; remainder -> fund; allow debt for owners on negative periods
 export function credit(h, n) {
   let rest = 100;
-  for (const [u, p] of Object.entries(h.shares)) { h.bal[u] = Math.max(0, r2((h.bal[u] ?? 0) + n * p / 100)); rest -= p; }
+  for (const [u, p] of Object.entries(h.shares)) {
+    h.bal[u] = r2((h.bal[u] ?? 0) + n * p / 100);
+    rest -= p;
+  }
   h.fund = Math.max(0, r2(h.fund + n * Math.max(rest, 0) / 100));
 }
 

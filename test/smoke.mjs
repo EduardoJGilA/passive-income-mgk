@@ -51,6 +51,22 @@ assert.ok(before > 0);
 await ops.collect('h1', { aid: 'A' }, 'P1');
 assert.equal(H().bal.A, 0);
 console.log('actor A paid', actorA.sys);
+
+// Bug 1: Saldo se conserva si falla el pago (sin moneda configurada)
+H().bal.A = 42;
+const savedCoins = store.coins, savedPath = store.currencyPath;
+store.coins = ''; store.currencyPath = '';
+await ops.collect('h1', { aid: 'A' }, 'P1');
+assert.equal(H().bal.A, 42, 'saldo conservado si falla pago por falta de moneda');
+store.coins = savedCoins; store.currencyPath = savedPath;
+await ops.collect('h1', { aid: 'A' }, 'P1');
+assert.equal(H().bal.A, 0, 'saldo cobrado tras restaurar moneda');
+
+// collectAll para GM
+H().bal.A = 15;
+await ops.collectAll('h1', {}, 'GM');
+assert.equal(H().bal.A, 0, 'collectAll liquida saldo');
+
 H().fund = 50;
 await ops.buy('h1', { uid: 'u1' }, 'P1');
 assert.equal(H().upgrades[0].left, 1);

@@ -153,6 +153,14 @@
     "NoUnits": "Sin unidades.",
     "NoBuilds": "Aún no hay construcciones disponibles.",
     "NoLog": "Aún no ha pasado nada.",
-    "Per": "periodo"
+    "Per": "periodo",
+    "NoCurrencyPath": "No se puede cobrar: no hay ruta de moneda ni denominaciones configuradas.",
+    "UnknownName": "Estadística o unidad desconocida en condiciones/efectos: {names}",
+    "PeriodsSkipped": "Se omitieron {count} periodos por un salto de tiempo largo.",
+    "CollectAll": "Pagar a todos",
+    "Debt": "Deuda",
+    "Season": "Estación",
+    "CurrentSeason": "Estación actual",
+    "Index": "Índice"
   }
 }

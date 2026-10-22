@@ -153,6 +153,14 @@
     "NoUnits": "No units.",
     "NoBuilds": "No buildings available yet.",
     "NoLog": "Nothing has happened yet.",
-    "Per": "period"
+    "Per": "period",
+    "NoCurrencyPath": "Cannot collect: no currency path or coin denominations configured.",
+    "UnknownName": "Unknown stat or unit in conditions/effects: {names}",
+    "PeriodsSkipped": "Skipped {count} periods due to a large time jump.",
+    "CollectAll": "Pay All",
+    "Debt": "Debt",
+    "Season": "Season",
+    "CurrentSeason": "Current season",
+    "Index": "Index"
   }
 }

@@ -11,16 +11,18 @@ export function PRESETS() {
 
   return [
     {
-      key: 'vineyard', icon: 'fa-wine-bottle', name: L('Vineyard Estate', 'Finca y Viñedo'), kind: L('Agriculture', 'Agricultura'), income: '2d6*5', upkeep: '10', eventChance: 35,
-      seasons: L('Fall:2.5;Winter:0.3', 'Otoño:2.5;Invierno:0.3'), value: 3000, desc: L('Rolling vines, lush hillside terraces, and a modest oak wine press.', 'Hileras de vides, terrazas verdes y una modesta prensa de roble.'),
-      stats: [S(L('Quality', 'Calidad'), 50, 0.4), S(Rep, 10, 0.5)],
-      units: [U(L('Pickers', 'Vendimiadores'), 6, 1, 3, 20, 20), U(Grd, 1, 2, 0, 40, 6)],
+      key: 'vineyard', img: 'icons/environment/settlement/winemaker-still-vintner.webp', icon: 'fa-wine-bottle', name: L('Veil Terraces Vineyard', 'Viñedo de las Terrazas del Velo'), kind: L('Agriculture', 'Agricultura'), income: '1d6+1', upkeep: '10', eventChance: 35,
+      seasons: L('Fall:2.5;Winter:0.3;Stav:2.5;Choref:0.3;3:2.5;4:0.3', 'Otoño:2.5;Invierno:0.3;Stav:2.5;Choref:0.3;3:2.5;4:0.3'), value: 3000, desc: L('Rolling vines, lush hillside terraces, and a modest oak wine press.', 'Hileras de vides, terrazas verdes y una modesta prensa de roble.'),
+      stats: [S(L('Quality', 'Calidad'), 50, 0.1), S(Rep, 10, 0.1)],
+      units: [U(L('Pickers', 'Vendimiadores'), 6, 1, 1, 20, 20), U(Grd, 1, 2, 0, 40, 6)],
       events: [
+        E('good', L('Order from the Golden Druid', 'Pedido del Druida de Oro'), L('An emissary of the silent cloister orders sacred wine barrels.', 'Un emisario del claustro encarga barricas de vino sagrado para ofrendas.'), '2d10*5', '0', { weight: 2, fx: `${Rep}+6` }),
+        E('bad', L('Rotting root', 'Raíz podrida'), L('Dark mold seeps from the cloister boundary, fouling the lowest terrace.', 'Moho oscuro avanza desde los lindes del claustro y pudre la terraza baja.'), '-1d6*5', '-3d6*5', { weight: 2, missedFx: `${L('Quality', 'Calidad')}-8` }),
         E('good', L('Noble visit', 'Visita de un noble'), L('A noble connoisseur tastes the vintage and places a massive order.', 'Un noble catador prueba la cosecha y hace un pedido cuantioso.'), '3d10*5', '0', { weight: 2, fx: `${Rep}+5` }),
         E('bad', L('Blight on the vines', 'Plaga en las vides'), L('Leaves are spotting black. Treat the vines or lose part of the harvest.', 'Hojas manchadas de negro. Hay que tratar las vides de inmediato.'), '-1d6*5', '-4d6*5', { weight: 2, missedFx: `${L('Quality', 'Calidad')}-10` }),
         E('neutral', L('Barrel merchant', 'Comerciante de barriles'), L('A cooper offers seasoned oak barrels in bulk.', 'Un tonelero ofrece barriles de roble curado al por mayor.'), '2d6*10', '0'),
         E('bad', L('Bandits prowl', 'Bandidos rondan'), L('Suspicious scouts watch the wine cellar at night.', 'Exploradores sospechosos vigilan la bodega al anochecer.'), '-2d6', '-5d10*5', { cond: `${Grd}<3`, weight: 2, fx: `${Grd}-1`, missedFx: `${L('Pickers', 'Vendimiadores')}-2` }),
-        E('good', L('Exceptional vintage', 'Cosecha excepcional'), L('The grapes ripen perfectly with ideal autumn sun.', 'Las uvas maduran con dulzura perfecta bajo el sol otoñal.'), '6d10*5', '0', { season: L('Fall', 'Otoño'), deadline: 2, fx: `${L('Quality', 'Calidad')}+5` })
+        E('good', L('Exceptional vintage', 'Cosecha excepcional'), L('The grapes ripen perfectly with ideal autumn sun.', 'Las uvas maduran con dulzura perfecta bajo el sol otoñal.'), '6d10*5', '0', { season: L('Fall,Stav,3', 'Otoño,Stav,3'), deadline: 2, fx: `${L('Quality', 'Calidad')}+5` })
       ],
       upgrades: [
         B(L('Heavy screw press', 'Prensa de tornillo'), 300, 15, 2, `${L('Quality', 'Calidad')}+10`, L('Improves grape extraction rate.', 'Mejora el rendimiento de prensado.')),
@@ -29,7 +31,7 @@ export function PRESETS() {
       ]
     },
     {
-      key: 'tavern', icon: 'fa-beer-mug-empty', name: L('Tavern & Inn', 'Taberna y Posada'), kind: L('Commerce', 'Comercio'), income: '2d8*4', upkeep: '12', eventChance: 45, seasons: '', value: 2000,
+      key: 'tavern', img: 'icons/environment/settlement/tavern.webp', icon: 'fa-beer-mug-empty', name: L('Tavern & Inn', 'Taberna y Posada'), kind: L('Commerce', 'Comercio'), income: '2d8*4', upkeep: '12', eventChance: 45, seasons: '', value: 2000,
       desc: L('Roaring hearth, cold foaming ale, and adventurers swapping rumors.', 'Hogar ardiente, cerveza espumosa y aventureros compartiendo rumores.'),
       stats: [S(Rep, 25, 0.6), S(L('Comfort', 'Comodidad'), 40, 0.3)],
       units: [U(L('Staff', 'Personal'), 3, 1, 3, 15, 12), U(L('Bouncers', 'Gorilas'), 1, 2, 0, 30, 4)],
@@ -44,7 +46,7 @@ export function PRESETS() {
       ]
     },
     {
-      key: 'quarry', icon: 'fa-mountain', name: L('Stone Quarry', 'Cantera de Canteros'), kind: L('Industry', 'Industria'), income: '3d6*6', upkeep: '18', eventChance: 30, seasons: '', value: 4500,
+      key: 'quarry', img: 'icons/environment/settlement/quarry.webp', icon: 'fa-mountain', name: L('Stone Quarry', 'Cantera de Canteros'), kind: L('Industry', 'Industria'), income: '3d6*6', upkeep: '18', eventChance: 30, seasons: '', value: 4500,
       desc: L('Granite blocks and building gravel supplied to fortifications and towns.', 'Bloques de granito y grava para murallas y ciudades de toda la región.'),
       stats: [S(L('Safety', 'Seguridad'), 65, 0.3), S(Mor, 50, 0.2)],
       units: [U(L('Miners', 'Canteros'), 8, 1, 4, 25, 30), U(Grd, 2, 2, 0, 40, 8)],
@@ -59,7 +61,7 @@ export function PRESETS() {
       ]
     },
     {
-      key: 'village', icon: 'fa-tree', name: L('Farming Village', 'Aldea Rural'), kind: L('Settlement', 'Asentamiento'), income: '2d8*5', upkeep: '20', eventChance: 40, seasons: L('Fall:1.5;Winter:0.5', 'Otoño:1.5;Invierno:0.5'), value: 8500,
+      key: 'village', img: 'icons/environment/settlement/house-farmland.webp', icon: 'fa-tree', name: L('Farming Village', 'Aldea Rural'), kind: L('Settlement', 'Asentamiento'), income: '2d8*5', upkeep: '20', eventChance: 40, seasons: L('Fall:1.5;Winter:0.5', 'Otoño:1.5;Invierno:0.5'), value: 8500,
       desc: L('A humble settlement paying tithes in exchange for protection and law.', 'Un humilde asentamiento que rinde tributo a cambio de protección y justicia.'),
       stats: [S(L('Population', 'Población'), 200, 0.15, 1000), S(Mor, 50, 0), S(L('Defense', 'Defensa'), 15, 0, 60)],
       units: [U(L('Militia', 'Milicia'), 6, 1, 0, 30, 30), U(L('Farmers', 'Campesinos'), 40, 0, 0.5, 5, 200)],
@@ -75,7 +77,7 @@ export function PRESETS() {
       ]
     },
     {
-      key: 'castle', icon: 'fa-chess-rook', name: L('Border Fortress', 'Fortaleza Fronteriza'), kind: L('Military', 'Militar'), income: '4d10*6', upkeep: '100', eventChance: 40, seasons: '', value: 45000,
+      key: 'castle', img: 'icons/environment/settlement/castle.webp', icon: 'fa-chess-rook', name: L('Border Fortress', 'Fortaleza Fronteriza'), kind: L('Military', 'Militar'), income: '4d10*6', upkeep: '100', eventChance: 40, seasons: '', value: 45000,
       desc: L('Towering battlements, an armed garrison, and sovereign authority over the lands.', 'Almenas imponentes, guarnición juramentada y autoridad sobre la comarca.'),
       stats: [S(L('Defense', 'Defensa'), 50, 0, 100), S(Mor, 60, 0), S(L('Prestige', 'Prestigio'), 25, 1.2, 100)],
       units: [U(L('Soldiers', 'Soldados'), 20, 2, 0, 50, 100), U(L('Servants', 'Sirvientes'), 10, 1, 0, 10, 40), U(L('Knights', 'Caballeros'), 2, 8, 0, 300, 10)],
@@ -91,7 +93,7 @@ export function PRESETS() {
       ]
     },
     {
-      key: 'mine', icon: 'fa-gem', name: L('Deep Silver Mine', 'Mina de Plata'), kind: L('Mining', 'Minería'), income: '4d10*8', upkeep: '40', eventChance: 40, seasons: '', value: 14000,
+      key: 'mine', img: 'icons/environment/settlement/mine-cart-rocks-red.webp', icon: 'fa-gem', name: L('Deep Silver Mine', 'Mina de Plata'), kind: L('Mining', 'Minería'), income: '4d10*8', upkeep: '40', eventChance: 40, seasons: '', value: 14000,
       desc: L('Subterranean shafts penetrating deep into glittering silver seams.', 'Galerías subterráneas que horadan vetas ricas de plata y metales nobles.'),
       stats: [S(L('Ore reserve', 'Reserva de plata'), 100, 0.6, 250), S(L('Safety', 'Seguridad'), 50, 0.2)],
       units: [U(L('Miners', 'Mineros'), 12, 1, 5, 30, 60), U(Grd, 2, 2, 0, 40, 10)],
@@ -106,7 +108,7 @@ export function PRESETS() {
       ]
     },
     {
-      key: 'tower', icon: 'fa-hat-wizard', name: L('Mage Tower & Spire', 'Torre del Mago'), kind: L('Arcane', 'Arcano'), income: '3d10*8', upkeep: '45', eventChance: 45, seasons: '', value: 18000,
+      key: 'tower', img: 'icons/environment/settlement/tower-stone-blue.webp', icon: 'fa-hat-wizard', name: L('Mage Tower & Spire', 'Torre del Mago'), kind: L('Arcane', 'Arcano'), income: '3d10*8', upkeep: '45', eventChance: 45, seasons: '', value: 18000,
       desc: L('A soaring spire channeling ley lines, scribing scrolls, and distilling reagents.', 'Una aguja mágica que canaliza líneas ley, transcribe pergaminos y destila esencias.'),
       stats: [S(L('Arcane energy', 'Energía arcana'), 60, 0.5, 150), S(L('Stability', 'Estabilidad'), 70, 0.3, 100)],
       units: [U(L('Apprentices', 'Aprendices'), 4, 1, 4, 35, 12), U(L('Golems', 'Golems'), 1, 3, 0, 120, 4)],
@@ -121,7 +123,7 @@ export function PRESETS() {
       ]
     },
     {
-      key: 'thieves', icon: 'fa-mask', name: L('Shadow Den & Guild', 'Guarida de Ladrones'), kind: L('Underworld', 'Bajos fondos'), income: '3d8*8', upkeep: '25', eventChance: 50, seasons: '', value: 7500,
+      key: 'thieves', img: 'icons/environment/settlement/sewer-entrance.webp', icon: 'fa-mask', name: L('Shadow Den & Guild', 'Guarida de Ladrones'), kind: L('Underworld', 'Bajos fondos'), income: '3d8*8', upkeep: '25', eventChance: 50, seasons: '', value: 7500,
       desc: L('Hidden cellars, forged passes, and black-market syndicates skimming the city.', 'Sótanos secretos, salvoconductos falsificados y redes de contrabando.'),
       stats: [S(L('Infiltration', 'Infiltración'), 40, 0.5, 100), S(L('Heat', 'Alerta de la guardia'), 20, 0, 100)],
       units: [U(L('Footpads', 'Rateros'), 8, 1, 3, 15, 30), U(L('Fences', 'Peristas'), 2, 2, 6, 45, 6)],
@@ -136,7 +138,7 @@ export function PRESETS() {
       ]
     },
     {
-      key: 'port', icon: 'fa-ship', name: L('Merchant Port & Docks', 'Puerto Mercante'), kind: L('Maritime', 'Marítimo'), income: '4d8*7', upkeep: '50', eventChance: 45, seasons: L('Winter:0.4', 'Invierno:0.4'), value: 22000,
+      key: 'port', img: 'icons/environment/settlement/ship.webp', icon: 'fa-ship', name: L('Merchant Port & Docks', 'Puerto Mercante'), kind: L('Maritime', 'Marítimo'), income: '4d8*7', upkeep: '50', eventChance: 45, seasons: L('Winter:0.4', 'Invierno:0.4'), value: 22000,
       desc: L('Wharves packed with galleons, warehouses, customs tariffs, and spices from across the seas.', 'Muelles con galeones, aduanas, almacenes de ultramar y especias exóticas.'),
       stats: [S(L('Trade volume', 'Flujo comercial'), 60, 0.7, 200), S(L('Naval safety', 'Seguridad marítima'), 50, 0.3, 100)],
       units: [U(L('Dockworkers', 'Estibadores'), 15, 1, 2, 15, 50), U(L('Marines', 'Infantería naval'), 4, 3, 0, 60, 15)],
@@ -151,7 +153,7 @@ export function PRESETS() {
       ]
     },
     {
-      key: 'temple', icon: 'fa-place-of-worship', name: L('Sacred Sanctuary', 'Santuario Sagrado'), kind: L('Faith', 'Religión'), income: '2d10*6', upkeep: '20', eventChance: 35, seasons: '', value: 12000,
+      key: 'temple', img: 'icons/environment/settlement/church.webp', icon: 'fa-place-of-worship', name: L('Sacred Sanctuary', 'Santuario Sagrado'), kind: L('Faith', 'Religión'), income: '2d10*6', upkeep: '20', eventChance: 35, seasons: '', value: 12000,
       desc: L('Marble colonnades, sacred relics, incense altars, and devout pilgrims seeking boons.', 'Columnatas de mármol, reliquias veneradas y peregrinos buscando bendiciones.'),
       stats: [S(L('Devotion', 'Devoción'), 50, 0.5, 150), S(L('Pilgrims', 'Peregrinos'), 40, 0.3, 200)],
       units: [U(L('Acolytes', 'Acólitos'), 6, 1, 2, 20, 25), U(L('Templars', 'Templarios'), 2, 3, 0, 80, 8)],

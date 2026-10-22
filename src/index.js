@@ -11,7 +11,13 @@ const cur = () => set('currency');
 const fmt = n => `${n > 0 ? '+' : ''}${n} ${cur()}`;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const sc = () => globalThis.SimpleCalendar?.api;
-const season = () => sc()?.getCurrentSeason?.()?.name;
+const season = () => {
+  const s = sc()?.getCurrentSeason?.();
+  if (!s) return null;
+  const seasons = sc()?.getCurrentCalendar?.()?.seasons ?? [];
+  const idx = seasons.findIndex(x => x.name === s.name);
+  return { name: s.name, index: idx >= 0 ? idx + 1 : null };
+};
 const stamp = () => { try { return sc().formatTimestamp(sc().timestamp()).date; } catch { return new Date().toLocaleDateString(); } };
 const roll = async f => {
   try { return r2((await new Roll(String(f || 0)).evaluate()).total) || 0; } catch { ui.notifications.warn(`${ID}: bad formula "${f}"`); return 0; }
@@ -33,8 +39,10 @@ async function applyLanguage(l) {
 
 // shares/bal are keyed by actor id; legacy user-id keys map to that user's character
 const byActor = o => Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [game.users.get(k)?.character?.id ?? k, v]));
+const defImg = h => (!h.img || h.img === 'icons/svg/house.svg' ? 'icons/environment/settlement/house-farmland.webp' : h.img);
 const get = () => foundry.utils.deepClone(set('holdings')).map(h => ({
   fund: h.balance ?? 0, stats: [], units: [], upgrades: [], events: [], log: [], income: '0', upkeep: '0', eventChance: 0, seasons: '', value: 0, pending: null, ...h,
+  img: defImg(h),
   shares: byActor(h.shares ?? Object.fromEntries((h.owners ?? []).map(u => [u, Math.floor(100 / h.owners.length)]))), bal: byActor(h.bal)
 }));
 // serialized read-modify-write: ops await rolls/chat, so concurrent ones would overwrite each other
@@ -105,10 +113,28 @@ const ops = {
   }),
   collect: (id, { aid }, user) => mutate(async d => {
     const h = d.find(x => x.id === id), n = h?.bal[aid];
-    if (!n || !(ctl(aid, user) || game.users.get(user)?.isGM)) return;
+    if (!n || n <= 0 || !(ctl(aid, user) || game.users.get(user)?.isGM)) return;
+    const ok = await pay(aid, n);
+    if (!ok) return void ui.notifications.warn(t('NoCurrencyPath'));
     h.bal[aid] = 0;
-    await pay(aid, n);
     await say(t('Collected', { name: h.name, amount: `${n} ${cur()}` }), h);
+  }),
+  collectAll: (id, _, user) => mutate(async d => {
+    if (!game.users.get(user)?.isGM) return;
+    const h = d.find(x => x.id === id);
+    if (!h) return;
+    for (const [aid, bal] of Object.entries(h.bal)) {
+      if (bal > 0) {
+        const ok = await pay(aid, bal);
+        if (ok) {
+          h.bal[aid] = 0;
+          await say(t('Collected', { name: h.name, amount: `${bal} ${cur()}` }), h);
+        } else {
+          ui.notifications.warn(t('NoCurrencyPath'));
+          break;
+        }
+      }
+    }
   }),
   buy: (id, { uid }, user) => mutate(async d => {
     const h = d.find(x => x.id === id), u = h?.upgrades.find(x => x.id === uid);
@@ -152,7 +178,7 @@ const ops = {
     d.splice(i, 1);
   })
 };
-const GM_ONLY = new Set(['tick', 'fire', 'offer', 'sell']);
+const GM_ONLY = new Set(['tick', 'fire', 'offer', 'sell', 'collectAll']);
 
 function request(action, id, data = {}) {
   if (game.user.isGM) return ops[action](id, data, game.user.id);
@@ -168,9 +194,12 @@ async function onTime() {
   const now = api.timestamp(), last = set('lastTs');
   const len = api.timestampPlusInterval(0, { day: set('periodDays') }) || 86400;
   if (!last || now < last) return game.settings.set(ID, 'lastTs', now);
-  const n = Math.min(Math.floor((now - last) / len), 12); // ponytail: cap to avoid chat flood after long jumps
+  const totalPeriods = Math.floor((now - last) / len);
+  const n = Math.min(totalPeriods, 12); // ponytail: cap to avoid chat flood after long jumps
   if (!n) return;
-  await game.settings.set(ID, 'lastTs', last + Math.floor((now - last) / len) * len);
+  const skipped = totalPeriods - n;
+  if (skipped > 0) ui.notifications.warn(t('PeriodsSkipped', { count: skipped }));
+  await game.settings.set(ID, 'lastTs', last + totalPeriods * len);
   for (let i = 0; i < n; i++) await ops.tick();
 }
 
@@ -181,7 +210,7 @@ function view(uid) {
     ...h, incomeTxt: bonus(h) ? `${h.income || 0}+${bonus(h)}` : h.income, passive: passive(h), log: h.log.slice(0, 15),
     owners: Object.entries(h.shares).map(([id, share]) => {
       const a = game.actors.get(id), bal = h.bal[id] ?? 0, mine = isGM || ctl(id, uid);
-      return { id, name: a?.name ?? '?', img: a?.img, share, bal, canCollect: bal > 0 && mine, canMove: mine };
+      return { id, name: a?.name ?? '?', img: a?.img, share, bal, isDebt: bal < 0, canCollect: bal > 0 && mine, canMove: mine };
     }),
     stats: h.stats.map(x => ({ ...x, pct: x.max ? Math.min(100, Math.round(x.value / x.max * 100)) : null })),
     units: h.units.map(u => ({ ...u, canHire: h.fund >= u.hire && (!u.max || u.count < u.max) })),
@@ -227,6 +256,7 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
       fire: (_, el) => request('fire', HoldingsApp.#id(el)),
       attend: (_, el) => request('attend', HoldingsApp.#id(el)),
       collect: (_, el) => request('collect', HoldingsApp.#id(el), { aid: el.dataset.aid }),
+      collectAll: (_, el) => request('collectAll', HoldingsApp.#id(el)),
       buy: (_, el) => request('buy', HoldingsApp.#id(el), { uid: el.closest('[data-uid]').dataset.uid }),
       offer: (_, el) => request('offer', HoldingsApp.#id(el), { uid: el.closest('[data-uid]').dataset.uid }),
       hire: (_, el) => request('hire', HoldingsApp.#id(el), { i: +el.closest('[data-i]').dataset.i }),
@@ -244,7 +274,9 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.sel = h?.id;
     const icons = { overview: 'fa-gauge-high', owners: 'fa-users', units: 'fa-people-group', builds: 'fa-hammer', log: 'fa-scroll' };
     const tabs = Object.entries(icons).map(([id, icon]) => ({ id, icon, label: t(`Tab.${id}`), active: this.tab === id }));
-    return { ...await super._prepareContext(o), ...v, h, tabs, tab: this.tab, cur: cur() };
+    const curSeason = season();
+    const curSeasonMult = h ? seasonMult(h.seasons, curSeason) : 1;
+    return { ...await super._prepareContext(o), ...v, h, tabs, tab: this.tab, cur: cur(), currentSeason: curSeason?.name, currentSeasonMult: curSeasonMult };
   }
 
   _onRender(context, options) {
@@ -573,11 +605,11 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _prepareContext(o) {
-    const h = { img: 'icons/svg/house.svg', desc: '', shares: {}, ...this.#base() };
+    const h = { img: 'icons/environment/settlement/house-farmland.webp', desc: '', shares: {}, ...this.#base() };
     const data = { ...h, owners: Object.entries(h.shares).map(([actor, pct]) => ({ actor, pct })) };
     const editIcons = { general: 'fa-sliders', economy: 'fa-coins', owners: 'fa-users', mgmt: 'fa-toolbox', events: 'fa-bolt' };
     return {
-      ...await super._prepareContext(o), h,
+      ...await super._prepareContext(o), h, curSeason: season(),
       tabs: ['general', 'economy', 'owners', 'mgmt', 'events'].map((id, i) => ({ id, icon: editIcons[id], label: t(`ETab.${id}`), active: !i })),
       sections: Object.keys(SECS).map(key => ({ key, pane: PANE[key], title: t(`Sec.${key}`), hint: game.i18n.has(`PIM.Hint.${key}`) ? t(`Hint.${key}`) : '', rows: data[key].map(r => row(key, r)).join(''), tpl: row(key) }))
     };
@@ -597,13 +629,41 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const total = sum(Object.values(shares), x => x);
       if (total > 100) { ui.notifications.warn(t('OverShare')); for (const a in shares) shares[a] = r2(shares[a] * 100 / total); }
       for (const a of Object.keys(h.shares ?? {})) if (!(a in shares) && h.bal?.[a] > 0) { orphans.push([a, h.bal[a]]); delete h.bal[a]; }
+
+      const statRows = rows('stats').filter(r => r.name);
+      const unitRows = rows('units').filter(r => r.name);
+      const eventRows = rows('events').filter(r => r.title);
+      const upgradeRows = rows('upgrades').filter(r => r.name);
+
+      const validNames = new Set([
+        'fund', 'fondo',
+        ...statRows.map(r => r.name.trim().toLowerCase()),
+        ...unitRows.map(r => r.name.trim().toLowerCase())
+      ]);
+      const unknownNames = new Set();
+      const checkFx = str => {
+        for (const m of String(str || '').split(';')) {
+          const [, name] = m.trim().match(/^(.+?)\s*[+-]\d+(?:\.\d+)?$/) ?? [];
+          if (name && !validNames.has(name.trim().toLowerCase())) unknownNames.add(name.trim());
+        }
+      };
+      const checkCond = cond => {
+        for (const c of String(cond || '').split(';')) {
+          const [, name] = c.trim().match(/^(.+?)\s*(?:<=|>=|<|>|=)/) ?? [];
+          if (name && !validNames.has(name.trim().toLowerCase())) unknownNames.add(name.trim());
+        }
+      };
+      for (const ev of eventRows) { checkCond(ev.cond); checkFx(ev.fx); checkFx(ev.missedFx); }
+      for (const up of upgradeRows) checkFx(up.fx);
+      if (unknownNames.size) ui.notifications.warn(t('UnknownName', { names: [...unknownNames].join(', ') }));
+
       Object.assign(h, {
         name: f.name, img: f.img, desc: f.desc, kind: f.kind, income: f.income || '0', upkeep: f.upkeep || '0',
         eventChance: +f.eventChance || 0, seasons: f.seasons, value: +f.value || 0, shares,
-        stats: rows('stats').filter(r => r.name).map(r => ({ name: r.name, ...num(r, 'value', 'perPoint', 'max') })),
-        units: rows('units').filter(r => r.name).map(r => ({ name: r.name, ...num(r, 'count', 'upkeep', 'income', 'hire', 'max') })),
-        events: rows('events').filter(r => r.title).map(r => ({ ...r, ...num(r, 'weight', 'deadline'), amount: r.amount || '0', missed: r.missed || '0' })),
-        upgrades: rows('upgrades').filter(r => r.name).map(r => {
+        stats: statRows.map(r => ({ name: r.name, ...num(r, 'value', 'perPoint', 'max') })),
+        units: unitRows.map(r => ({ name: r.name, ...num(r, 'count', 'upkeep', 'income', 'hire', 'max') })),
+        events: eventRows.map(r => ({ ...r, ...num(r, 'weight', 'deadline'), amount: r.amount || '0', missed: r.missed || '0' })),
+        upgrades: upgradeRows.map(r => {
           const p = old?.upgrades.find(u => u.id === r.id);
           return { id: p?.id ?? foundry.utils.randomID(), name: r.name, desc: r.desc, fx: r.fx, ...num(r, 'cost', 'bonus', 'time'), offered: p?.offered ?? false, done: p?.done ?? false, left: p?.left ?? 0 };
         })

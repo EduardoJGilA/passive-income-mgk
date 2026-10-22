@@ -40,6 +40,7 @@
         <div class="pim-hero-title-row">
           <h2>{{h.name}}</h2>
           {{#if h.kind}}<span class="pim-kind">{{h.kind}}</span>{{/if}}
+          {{#if currentSeason}}<span class="pim-pill pim-pill-season" title="{{localize "PIM.Season"}}"><i class="fa-solid fa-cloud-sun"></i> {{currentSeason}} (x{{currentSeasonMult}})</span>{{/if}}
         </div>
         {{#if h.desc}}<p class="pim-desc">{{h.desc}}</p>{{/if}}
       </div>
@@ -121,6 +122,11 @@
       {{/if}}
 
       {{#if (eq tab "owners")}}
+        {{#if isGM}}
+        <div class="pim-tab-actions">
+          <button type="button" class="pim-btn-subtle" data-action="collectAll"><i class="fa-solid fa-money-bill-wave"></i> {{localize "PIM.CollectAll"}}</button>
+        </div>
+        {{/if}}
         <div class="pim-cards">
           {{#each h.owners as |o|}}<div class="pim-card pim-owner-card" data-aid="{{o.id}}">
             <img class="pim-card-avatar" src="{{o.img}}" alt="{{o.name}}">
@@ -128,7 +134,10 @@
               <b>{{o.name}}</b>
               <span class="pim-pill pim-pill-share"><i class="fa-solid fa-percent"></i> {{o.share}}% {{localize "PIM.F.pct"}}</span>
             </div>
-            <div class="pim-card-num"><b>{{o.bal}}</b><small>{{../cur}}</small></div>
+            <div class="pim-card-num {{#if o.isDebt}}pim-debt{{/if}}">
+              <b>{{o.bal}}</b><small>{{../cur}}</small>
+              {{#if o.isDebt}}<span class="pim-pill pim-pill-debt">{{localize "PIM.Debt"}}</span>{{/if}}
+            </div>
             <div class="pim-card-act">
               {{#if o.canCollect}}<button type="button" class="pim-btn-collect" data-action="collect" data-aid="{{o.id}}"><i class="fa-solid fa-sack-dollar"></i> {{localize "PIM.Collect"}}</button>{{/if}}
               {{#if o.canMove}}<button type="button" class="pim-btn-icon" data-action="transfer" data-tooltip="PIM.Transfer"><i class="fa-solid fa-right-left"></i></button>{{/if}}
