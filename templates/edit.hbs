@@ -1,29 +1,76 @@
 <nav class="sheet-tabs tabs pim-tabs">
-  {{#each tabs}}<a class="{{#if active}}active{{/if}}" data-action="etab" data-tab="{{id}}">{{label}}</a>{{/each}}
+  {{#each tabs}}<a class="{{#if active}}active{{/if}}" data-action="etab" data-tab="{{id}}"><i class="fa-solid {{icon}}" inert></i> <span>{{label}}</span></a>{{/each}}
 </nav>
 <div class="pim-edit-body">
   <div class="pim-epane {{#if tabs.0.active}}active{{/if}}" data-pane="general">
-    <div class="form-group"><label>{{localize "PIM.Name"}}</label><div class="form-fields"><input type="text" name="name" value="{{h.name}}"></div></div>
-    <div class="form-group"><label>{{localize "PIM.Kind"}}</label><div class="form-fields"><input type="text" name="kind" value="{{h.kind}}"></div></div>
-    <div class="form-group"><label>{{localize "PIM.Image"}}</label><div class="form-fields"><file-picker name="img" type="image" value="{{h.img}}"></file-picker></div></div>
-    <div class="form-group"><label>{{localize "PIM.Description"}}</label><div class="form-fields"><textarea name="desc" rows="3">{{h.desc}}</textarea></div></div>
-    <div class="form-group"><label>{{localize "PIM.Value"}}</label><div class="form-fields"><input type="number" name="value" step="any" value="{{h.value}}"></div></div>
+    <div class="pim-grid-2">
+      <div class="form-group">
+        <label><i class="fa-solid fa-signature"></i> {{localize "PIM.Name"}}</label>
+        <div class="form-fields"><input type="text" name="name" value="{{h.name}}" placeholder="{{localize "PIM.Name"}}"></div>
+      </div>
+      <div class="form-group">
+        <label><i class="fa-solid fa-tag"></i> {{localize "PIM.Kind"}}</label>
+        <div class="form-fields"><input type="text" name="kind" value="{{h.kind}}" placeholder="Castle, Tavern, Farm..."></div>
+      </div>
+    </div>
+    <div class="pim-grid-2">
+      <div class="form-group">
+        <label><i class="fa-solid fa-image"></i> {{localize "PIM.Image"}}</label>
+        <div class="form-fields"><file-picker name="img" type="image" value="{{h.img}}"></file-picker></div>
+      </div>
+      <div class="form-group">
+        <label><i class="fa-solid fa-coins"></i> {{localize "PIM.Value"}}</label>
+        <div class="form-fields"><input type="number" name="value" step="any" value="{{h.value}}" placeholder="0"></div>
+      </div>
+    </div>
+    <div class="form-group pim-full">
+      <label><i class="fa-solid fa-align-left"></i> {{localize "PIM.Description"}}</label>
+      <div class="form-fields"><textarea name="desc" rows="4" placeholder="{{localize "PIM.Description"}}...">{{h.desc}}</textarea></div>
+    </div>
   </div>
   <div class="pim-epane" data-pane="economy">
-    <div class="form-group"><label>{{localize "PIM.Income"}}</label><div class="form-fields"><input type="text" name="income" value="{{h.income}}"></div></div>
-    <div class="form-group"><label>{{localize "PIM.Upkeep"}}</label><div class="form-fields"><input type="text" name="upkeep" value="{{h.upkeep}}"></div></div>
-    <div class="form-group"><label>{{localize "PIM.EventChance"}}</label><div class="form-fields"><input type="number" name="eventChance" min="0" max="100" value="{{h.eventChance}}"></div></div>
-    <div class="form-group"><label>{{localize "PIM.Seasons"}}</label><div class="form-fields"><input type="text" name="seasons" value="{{h.seasons}}"></div></div>
-    <p class="hint">{{localize "PIM.IncomeHint"}} {{localize "PIM.SeasonsHint"}}</p>
+    <div class="pim-grid-2">
+      <div class="form-group">
+        <label><i class="fa-solid fa-arrow-trend-up"></i> {{localize "PIM.Income"}}</label>
+        <div class="form-fields"><input type="text" name="income" value="{{h.income}}" placeholder="e.g. 2d6*10, 50"></div>
+      </div>
+      <div class="form-group">
+        <label><i class="fa-solid fa-arrow-trend-down"></i> {{localize "PIM.Upkeep"}}</label>
+        <div class="form-fields"><input type="text" name="upkeep" value="{{h.upkeep}}" placeholder="e.g. 10, 1d6*5"></div>
+      </div>
+    </div>
+    <div class="pim-grid-2">
+      <div class="form-group">
+        <label><i class="fa-solid fa-dice-d20"></i> {{localize "PIM.EventChance"}}</label>
+        <div class="form-fields"><input type="number" name="eventChance" min="0" max="100" value="{{h.eventChance}}" placeholder="25"></div>
+      </div>
+      <div class="form-group">
+        <label><i class="fa-solid fa-calendar-days"></i> {{localize "PIM.Seasons"}}</label>
+        <div class="form-fields"><input type="text" name="seasons" value="{{h.seasons}}" placeholder="Fall:2;Winter:0.3"></div>
+      </div>
+    </div>
+    <div class="pim-hint-card">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>
+        <p>{{localize "PIM.IncomeHint"}}</p>
+        <p>{{localize "PIM.SeasonsHint"}}</p>
+      </div>
+    </div>
   </div>
   {{#each sections}}
   <section class="pim-sec" data-pane="{{pane}}" data-sec="{{key}}">
-    <h3>{{title}}</h3>
-    {{#if hint}}<p class="hint">{{hint}}</p>{{/if}}
+    <div class="pim-sec-head">
+      <div>
+        <h3>{{title}}</h3>
+        {{#if hint}}<p class="hint">{{hint}}</p>{{/if}}
+      </div>
+      <button type="button" class="pim-btn-add" data-action="addRow"><i class="fa-solid fa-plus"></i> {{localize "PIM.AddRow"}}</button>
+    </div>
     <div class="pim-rows" data-sec="{{key}}">{{{rows}}}</div>
     <template>{{{tpl}}}</template>
-    <button type="button" data-action="addRow"><i class="fa-solid fa-plus"></i> {{localize "PIM.AddRow"}}</button>
   </section>
   {{/each}}
 </div>
-<footer class="form-footer"><button type="submit"><i class="fa-solid fa-save"></i> {{localize "PIM.Save"}}</button></footer>
+<footer class="form-footer">
+  <button type="submit" class="pim-btn-save"><i class="fa-solid fa-floppy-disk"></i> {{localize "PIM.Save"}}</button>
+</footer>

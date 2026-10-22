@@ -285,26 +285,27 @@ const SECS = {
   owners: [C('actor', 4, 'select', { opts: () => game.actors.contents.map(a => [a.id, a.name]).sort((a, b) => a[1].localeCompare(b[1])).concat([['', '—']]) }), C('pct', 2, 'number', { def: 0 })],
   stats: [C('name', 3), C('value', 1, 'number', { def: 0 }), C('perPoint', 1, 'number', { def: 0 }), C('max', 1, 'number', { def: 0 })],
   units: [C('name', 2), C('count', 1, 'number', { def: 0 }), C('upkeep', 1, 'number', { def: 0 }), C('income', 1, 'number', { def: 0 }), C('hire', 1, 'number', { def: 0 }), C('max', 1, 'number', { def: 0 })],
-  upgrades: [C('name', 3), C('cost', 1, 'number', { def: 0 }), C('bonus', 1, 'number', { def: 0 }), C('time', 1, 'number', { def: 0 }), C('fx', 3), C('desc', 3)],
-  events: [C('kind', 2, 'select', { opts: kinds, def: 'neutral' }), C('title', 4), C('text', 6), C('amount', 2, 'text', { def: '0' }), C('missed', 2, 'text', { def: '0' }), C('weight', 1, 'number', { def: 1 }),
-    C('deadline', 1, 'number', { def: 1 }), C('fx', 3), C('missedFx', 3), C('cond', 3), C('season', 2), C('item', 4)]
+  upgrades: [C('name', 3), C('cost', 1, 'number', { def: 0 }), C('bonus', 1, 'number', { def: 0 }), C('time', 1, 'number', { def: 0 }), C('desc', 3), C('fx', 3)],
+  events: [C('kind', 2, 'select', { opts: kinds, def: 'neutral' }), C('title', 4), C('weight', 1, 'number', { def: 1 }), C('deadline', 1, 'number', { def: 1 }),
+    C('text', 6), C('amount', 2, 'text', { def: '0' }), C('missed', 2, 'text', { def: '0' }), C('item', 2),
+    C('cond', 3), C('season', 3), C('fx', 3), C('missedFx', 3)]
 };
-const field = (sec, c, v) => `<label class="pim-f" style="grid-column:span ${c.span * 2}"><span>${t(`F.${c.k}`)}</span>${
+const field = (sec, c, v) => `<label class="pim-f pim-f-${c.k}"><span>${t(`F.${c.k}`)}</span>${
   c.type === 'select'
     ? `<select data-k="${c.k}">${c.opts().map(([val, lab]) => `<option value="${esc(val)}" ${val == v ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`
     : `<input data-k="${c.k}" type="${c.type}" ${c.type === 'number' ? 'step="any"' : ''} value="${esc(v)}">`}</label>`;
-const row = (sec, o) => `<div class="pim-tr">${o?.id ? `<input type="hidden" data-k="id" value="${esc(o.id)}">` : ''}${SECS[sec].map(c => field(sec, c, o?.[c.k] ?? c.def ?? '')).join('')}<button type="button" data-action="delRow" title="${t('Delete')}"><i class="fa-solid fa-trash"></i></button></div>`;
+const row = (sec, o) => `<div class="pim-tr pim-tr-${sec}">${o?.id ? `<input type="hidden" data-k="id" value="${esc(o.id)}">` : ''}<div class="pim-tr-fields">${SECS[sec].map(c => field(sec, c, o?.[c.k] ?? c.def ?? '')).join('')}</div><button type="button" class="pim-del-row" data-action="delRow" title="${t('Delete')}"><i class="fa-solid fa-trash"></i></button></div>`;
 
 class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: 'pim-edit', tag: 'form', classes: ['pim-window', 'pim-edit'],
-    window: { title: 'PIM.Edit', icon: 'fa-solid fa-pen', resizable: true },
-    position: { width: 820, height: 760 },
+    window: { title: 'PIM.Edit', icon: 'fa-solid fa-pen-to-square', resizable: true },
+    position: { width: 860, height: 760 },
     actions: {
       etab(_, el) {
         for (const e of this.element.querySelectorAll('[data-tab],[data-pane]')) e.classList.toggle('active', (e.dataset.tab ?? e.dataset.pane) === el.dataset.tab);
       },
-      addRow(_, el) { const f = el.closest('fieldset'); f.querySelector('.pim-rows').append(f.querySelector('template').content.cloneNode(true)); },
+      addRow(_, el) { const sec = el.closest('.pim-sec'); sec.querySelector('.pim-rows').append(sec.querySelector('template').content.cloneNode(true)); },
       delRow(_, el) { el.closest('.pim-tr').remove(); }
     },
     form: { handler: EditApp.#submit, closeOnSubmit: true }
@@ -321,9 +322,10 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext(o) {
     const h = { img: 'icons/svg/house.svg', desc: '', shares: {}, ...this.#base() };
     const data = { ...h, owners: Object.entries(h.shares).map(([actor, pct]) => ({ actor, pct })) };
+    const editIcons = { general: 'fa-sliders', economy: 'fa-coins', owners: 'fa-users', mgmt: 'fa-toolbox', events: 'fa-bolt' };
     return {
       ...await super._prepareContext(o), h,
-      tabs: ['general', 'economy', 'owners', 'mgmt', 'events'].map((id, i) => ({ id, label: t(`ETab.${id}`), active: !i })),
+      tabs: ['general', 'economy', 'owners', 'mgmt', 'events'].map((id, i) => ({ id, icon: editIcons[id], label: t(`ETab.${id}`), active: !i })),
       sections: Object.keys(SECS).map(key => ({ key, pane: PANE[key], title: t(`Sec.${key}`), hint: game.i18n.has(`PIM.Hint.${key}`) ? t(`Hint.${key}`) : '', rows: data[key].map(r => row(key, r)).join(''), tpl: row(key) }))
     };
   }
