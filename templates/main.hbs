@@ -1,226 +1,94 @@
-<div class="pim">
-  <aside class="pim-side">
-    <div class="pim-side-head">
-      <span><i class="fa-solid fa-coins"></i> {{localize "PIM.Title"}}</span>
-      <span class="pim-count">{{holdings.length}}</span>
+<div class="pim pim-dir-root">
+  <header class="pim-dir-header">
+    <div class="pim-dir-brand">
+      <div class="pim-dir-brand-icon"><i class="fa-solid fa-landmark"></i></div>
+      <div class="pim-dir-brand-txt">
+        <h2>{{localize "PIM.Title"}}</h2>
+        <span class="pim-dir-subtitle">{{holdings.length}} {{localize "PIM.HoldingsCount"}}</span>
+      </div>
     </div>
-    <div class="pim-side-search">
+
+    <div class="pim-dir-search">
       <i class="fa-solid fa-magnifying-glass"></i>
       <input type="search" placeholder="{{localize "PIM.SearchHoldings"}}" data-action="filterHoldings">
     </div>
-    <div class="pim-side-list">
-      {{#each holdings as |x|}}
-      <button type="button" class="pim-item {{#if (eq x.id ../h.id)}}active{{/if}}" data-action="select" data-id="{{x.id}}">
-        <img src="{{x.img}}" alt="{{x.name}}">
-        <span class="pim-item-txt"><b>{{x.name}}</b><small>{{x.kind}}</small></span>
-        <span class="pim-badges">
-          {{#if x.pending}}<i class="fa-solid fa-bell pim-badge-bell" title="{{localize "PIM.BEvents"}}"></i>{{/if}}
-          {{#if x.ready}}<i class="fa-solid fa-hammer pim-badge-build" title="{{localize "PIM.BBuild"}}"></i>{{/if}}
-          {{#if x.due}}<i class="fa-solid fa-sack-dollar pim-badge-due" title="{{localize "PIM.BCollect"}}"></i>{{/if}}
-        </span>
-      </button>
-      {{else}}<p class="pim-empty">{{localize "PIM.None"}}</p>{{/each}}
-    </div>
-    {{#if isGM}}<div class="pim-side-foot">
+
+    {{#if isGM}}
+    <div class="pim-dir-actions">
       <button type="button" class="pim-btn-create" data-action="create"><i class="fa-solid fa-plus"></i> {{localize "PIM.New"}}</button>
-      <div class="pim-side-sub-btns">
-        <button type="button" class="pim-btn-subtle" data-action="import"><i class="fa-solid fa-file-import"></i> {{localize "PIM.Import"}}</button>
-        <button type="button" class="pim-btn-subtle" data-action="tick"><i class="fa-solid fa-forward-step"></i> {{localize "PIM.Tick"}}</button>
-      </div>
-    </div>{{/if}}
-  </aside>
+      <button type="button" class="pim-btn-subtle" data-action="import" title="{{localize "PIM.Import"}}"><i class="fa-solid fa-file-import"></i> {{localize "PIM.Import"}}</button>
+      <button type="button" class="pim-btn-subtle" data-action="tick" title="{{localize "PIM.Tick"}}"><i class="fa-solid fa-forward-step"></i> {{localize "PIM.Tick"}}</button>
+    </div>
+    {{/if}}
+  </header>
 
-  {{#if h}}
-  <main class="pim-main" data-id="{{h.id}}">
-    <header class="pim-hero" style="--bg:url('{{h.img}}')">
-      <div class="pim-hero-media">
-        <img src="{{h.img}}" alt="{{h.name}}">
-      </div>
-      <div class="pim-hero-txt">
-        <div class="pim-hero-title-row">
-          <h2>{{h.name}}</h2>
+  <div class="pim-dir-body">
+    {{#if holdings.length}}
+    <div class="pim-dir-grid">
+      {{#each holdings as |h|}}
+      <article class="pim-dir-card" data-id="{{h.id}}">
+        <div class="pim-dir-card-media" data-action="openHolding" data-id="{{h.id}}">
+          <img src="{{h.img}}" alt="{{h.name}}">
+          <div class="pim-dir-card-overlay"></div>
           {{#if h.kind}}<span class="pim-kind">{{h.kind}}</span>{{/if}}
-          {{#if currentSeason}}<span class="pim-pill pim-pill-season" title="{{localize "PIM.Season"}}"><i class="fa-solid fa-cloud-sun"></i> {{currentSeason}} (x{{currentSeasonMult}})</span>{{/if}}
-        </div>
-        {{#if h.desc}}<p class="pim-desc">{{h.desc}}</p>{{/if}}
-      </div>
-      {{#if isGM}}<div class="pim-gm">
-        <button type="button" class="pim-btn-icon" data-action="fire" data-tooltip="PIM.Fire"><i class="fa-solid fa-bolt"></i></button>
-        <button type="button" class="pim-btn-icon" data-action="edit" data-tooltip="PIM.Edit"><i class="fa-solid fa-pen-to-square"></i></button>
-        <button type="button" class="pim-btn-icon" data-action="export" data-tooltip="PIM.Export"><i class="fa-solid fa-file-export"></i></button>
-        <button type="button" class="pim-btn-icon" data-action="sell" data-tooltip="PIM.Sell"><i class="fa-solid fa-hand-holding-dollar"></i></button>
-        <button type="button" class="pim-btn-icon pim-btn-danger" data-action="remove" data-tooltip="PIM.Delete"><i class="fa-solid fa-trash"></i></button>
-      </div>{{/if}}
-    </header>
-
-    <nav class="sheet-tabs tabs pim-tabs">
-      {{#each tabs}}<a class="{{#if active}}active{{/if}}" data-action="goTab" data-tab="{{id}}"><i class="fa-solid {{icon}}" inert></i> <span>{{label}}</span></a>{{/each}}
-    </nav>
-
-    <div class="pim-pane">
-      {{#if (eq tab "overview")}}
-        {{#if h.pending}}
-        <section class="pim-event {{h.pending.kind}}">
-          <div class="pim-event-badge">
-            <i class="fa-solid {{#if (eq h.pending.kind "good")}}fa-circle-check{{else if (eq h.pending.kind "bad")}}fa-triangle-exclamation{{else}}fa-bell{{/if}}"></i>
-          </div>
-          <div class="pim-event-content">
-            <div class="pim-event-top">
-              <h3>{{h.pending.title}}</h3>
-              <span class="pim-event-time"><i class="fa-solid fa-hourglass-half"></i> {{h.pending.left}} {{localize "PIM.PeriodsLeft"}}</span>
-            </div>
-            <p>{{h.pending.text}}</p>
-          </div>
-          <button type="button" class="pim-btn-attend" data-action="attend"><i class="fa-solid fa-hand"></i> {{localize "PIM.Attend"}}</button>
-        </section>
-        {{/if}}
-
-        <div class="pim-kpis">
-          <div class="pim-kpi pim-kpi-fund">
-            <div class="pim-kpi-header">
-              <span class="pim-kpi-icon"><i class="fa-solid fa-vault"></i></span>
-              <label>{{localize "PIM.Fund"}}</label>
-            </div>
-            <div class="pim-kpi-value">
-              <b>{{h.fund}}</b>
-              <small>{{cur}}</small>
-            </div>
-          </div>
-          <div class="pim-kpi pim-kpi-income">
-            <div class="pim-kpi-header">
-              <span class="pim-kpi-icon"><i class="fa-solid fa-chart-line"></i></span>
-              <label>{{localize "PIM.IncomeShort"}}</label>
-            </div>
-            <div class="pim-kpi-value">
-              <b>{{h.incomeTxt}}</b>
-              <small class="pim-kpi-sub">{{#if h.passive}}{{#if (gt h.passive -1)}}+{{/if}}{{h.passive}} {{/if}}{{#if h.upkeep}}− {{h.upkeep}}{{/if}} {{cur}}</small>
-            </div>
-          </div>
-          <div class="pim-kpi pim-kpi-event">
-            <div class="pim-kpi-header">
-              <span class="pim-kpi-icon"><i class="fa-solid fa-dice-d20"></i></span>
-              <label>{{localize "PIM.EventChance"}}</label>
-            </div>
-            <div class="pim-kpi-value">
-              <b>{{h.eventChance}}%</b>
-              <small class="pim-kpi-sub">{{localize "PIM.Per"}}</small>
-            </div>
-          </div>
+          <span class="pim-dir-card-badges">
+            {{#if h.pending}}<span class="pim-badge pim-badge-bell" title="{{localize "PIM.BEvents"}}"><i class="fa-solid fa-bell"></i></span>{{/if}}
+            {{#if h.ready}}<span class="pim-badge pim-badge-build" title="{{localize "PIM.BBuild"}}"><i class="fa-solid fa-hammer"></i> {{h.ready}}</span>{{/if}}
+            {{#if h.due}}<span class="pim-badge pim-badge-due" title="{{localize "PIM.BCollect"}}"><i class="fa-solid fa-sack-dollar"></i> {{h.due}} {{../cur}}</span>{{/if}}
+          </span>
         </div>
 
-        {{#if h.stats.length}}
-        <div class="pim-sec-block">
-          <h4 class="pim-h"><i class="fa-solid fa-sliders"></i> {{localize "PIM.Sec.stats"}}</h4>
-          <div class="pim-stats">
-            {{#each h.stats}}<div class="pim-stat">
-              <div class="pim-stat-top"><span>{{name}}</span><b>{{value}}{{#if max}} / {{max}}{{/if}}</b></div>
-              {{#if pct}}<div class="pim-bar-track"><div class="pim-bar-fill" style="width:{{pct}}%"></div></div>{{/if}}
-            </div>{{/each}}
+        <div class="pim-dir-card-content">
+          <div class="pim-dir-card-head" data-action="openHolding" data-id="{{h.id}}">
+            <h3 class="pim-dir-card-title">{{h.name}}</h3>
+            {{#if h.desc}}<p class="pim-dir-card-desc">{{h.desc}}</p>{{/if}}
+          </div>
+
+          <div class="pim-dir-card-kpis">
+            <div class="pim-dir-kpi" title="{{localize "PIM.Fund"}}">
+              <span class="pim-dir-kpi-lbl"><i class="fa-solid fa-vault"></i> {{localize "PIM.Fund"}}</span>
+              <b>{{h.fund}}</b> <small>{{../cur}}</small>
+            </div>
+            <div class="pim-dir-kpi" title="{{localize "PIM.IncomeShort"}}">
+              <span class="pim-dir-kpi-lbl"><i class="fa-solid fa-chart-line"></i> {{localize "PIM.IncomeShort"}}</span>
+              <b>{{h.incomeTxt}}</b> <small>{{../cur}}</small>
+            </div>
+            <div class="pim-dir-kpi" title="{{localize "PIM.Sec.owners"}}">
+              <span class="pim-dir-kpi-lbl"><i class="fa-solid fa-users"></i> {{localize "PIM.Sec.owners"}}</span>
+              <b>{{h.owners.length}}</b>
+            </div>
+          </div>
+
+          <div class="pim-dir-card-foot">
+            <button type="button" class="pim-btn-open" data-action="openHolding" data-id="{{h.id}}">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> {{localize "PIM.ViewHolding"}}
+            </button>
+
+            {{#if ../isGM}}
+            <div class="pim-dir-card-gm">
+              <button type="button" class="pim-btn-icon" data-action="edit" data-id="{{h.id}}" data-tooltip="PIM.Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+              <button type="button" class="pim-btn-icon pim-btn-danger" data-action="remove" data-id="{{h.id}}" data-tooltip="PIM.Delete"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            {{/if}}
           </div>
         </div>
-        {{/if}}
-      {{/if}}
-
-      {{#if (eq tab "owners")}}
+      </article>
+      {{/each}}
+    </div>
+    {{else}}
+    <div class="pim-blank">
+      <div class="pim-blank-card">
+        <div class="pim-blank-icon"><i class="fa-solid fa-landmark"></i></div>
+        <h2>{{localize "PIM.Title"}}</h2>
+        <p>{{localize "PIM.None"}}</p>
         {{#if isGM}}
-        <div class="pim-tab-actions">
-          <button type="button" class="pim-btn-subtle" data-action="collectAll"><i class="fa-solid fa-money-bill-wave"></i> {{localize "PIM.CollectAll"}}</button>
+        <div class="pim-blank-actions">
+          <button type="button" class="pim-btn-primary" data-action="create"><i class="fa-solid fa-plus"></i> {{localize "PIM.New"}}</button>
+          <button type="button" class="pim-btn-subtle" data-action="import"><i class="fa-solid fa-file-import"></i> {{localize "PIM.Import"}}</button>
         </div>
         {{/if}}
-        <div class="pim-cards">
-          {{#each h.owners as |o|}}<div class="pim-card pim-owner-card" data-aid="{{o.id}}">
-            <img class="pim-card-avatar" src="{{o.img}}" alt="{{o.name}}">
-            <div class="pim-card-txt">
-              <b>{{o.name}}</b>
-              <span class="pim-pill pim-pill-share"><i class="fa-solid fa-percent"></i> {{o.share}}% {{localize "PIM.F.pct"}}</span>
-            </div>
-            <div class="pim-card-num {{#if o.isDebt}}pim-debt{{/if}}">
-              <b>{{o.bal}}</b><small>{{../cur}}</small>
-              {{#if o.isDebt}}<span class="pim-pill pim-pill-debt">{{localize "PIM.Debt"}}</span>{{/if}}
-            </div>
-            <div class="pim-card-act">
-              {{#if o.canCollect}}<button type="button" class="pim-btn-collect" data-action="collect" data-aid="{{o.id}}"><i class="fa-solid fa-sack-dollar"></i> {{localize "PIM.Collect"}}</button>{{/if}}
-              {{#if o.canMove}}<button type="button" class="pim-btn-icon" data-action="transfer" data-tooltip="PIM.Transfer"><i class="fa-solid fa-right-left"></i></button>{{/if}}
-            </div>
-          </div>{{else}}<p class="pim-empty">{{localize "PIM.NoOwners"}}</p>{{/each}}
-        </div>
-      {{/if}}
-
-      {{#if (eq tab "units")}}
-        <div class="pim-cards">
-          {{#each h.units as |u|}}<div class="pim-card pim-unit-card" data-i="{{@index}}">
-            <div class="pim-card-txt">
-              <b>{{u.name}}</b>
-              <small class="pim-unit-eco"><i class="fa-solid fa-coins"></i> −{{u.upkeep}} / +{{u.income}} {{../cur}}</small>
-            </div>
-            <div class="pim-card-num"><b>{{u.count}}</b>{{#if u.max}}<small class="pim-card-max">/ {{u.max}}</small>{{/if}}</div>
-            <div class="pim-card-act">
-              <button type="button" class="pim-btn-icon" data-action="dismiss" {{#unless u.count}}disabled{{/unless}} title="Dismiss"><i class="fa-solid fa-minus"></i></button>
-              <button type="button" class="pim-btn-hire" data-action="hire" {{#unless u.canHire}}disabled{{/unless}}><i class="fa-solid fa-plus"></i> {{u.hire}} {{../cur}}</button>
-            </div>
-          </div>{{else}}<p class="pim-empty">{{localize "PIM.NoUnits"}}</p>{{/each}}
-        </div>
-      {{/if}}
-
-      {{#if (eq tab "builds")}}
-        <div class="pim-cards">
-          {{#each h.upgrades as |u|}}<div class="pim-card pim-build-card {{#if u.done}}done{{/if}}" data-uid="{{u.id}}">
-            <div class="pim-card-txt">
-              <div class="pim-build-title">
-                <b>{{u.name}}</b>
-                {{#if u.done}}<span class="pim-badge-done"><i class="fa-solid fa-check"></i> {{localize "PIM.Done"}}</span>{{/if}}
-              </div>
-              <small class="pim-build-meta">
-                {{#if u.bonus}}<span class="pim-bonus">+{{u.bonus}}/{{localize "PIM.Per"}}</span> · {{/if}}
-                <span class="pim-cost">{{u.cost}} {{../cur}}</span>
-                {{#if u.time}} · <span class="pim-time"><i class="fa-solid fa-hourglass-start"></i> {{u.time}} {{localize "PIM.PeriodsLeft"}}</span>{{/if}}
-              </small>
-              {{#if u.desc}}<small class="pim-build-desc">{{u.desc}}</small>{{/if}}
-              {{#if u.left}}
-              <div class="pim-progress-wrap">
-                <div class="pim-bar-track"><div class="pim-bar-fill" style="width:{{u.pct}}%"></div></div>
-                <span class="pim-progress-txt"><i class="fa-solid fa-hammer"></i> {{u.left}} {{localize "PIM.PeriodsLeft"}}</span>
-              </div>
-              {{/if}}
-            </div>
-            <div class="pim-card-act">
-              {{#if u.done}}
-                <!-- completed badge -->
-              {{else if u.left}}
-                <span class="pim-status-building"><i class="fa-solid fa-person-digging"></i></span>
-              {{else}}
-                {{#if u.offered}}<button type="button" class="pim-btn-buy" data-action="buy" {{#unless u.afford}}disabled data-tooltip="PIM.NoFunds"{{/unless}}><i class="fa-solid fa-cart-shopping"></i> {{localize "PIM.Buy"}}</button>{{/if}}
-                {{#if ../isGM}}<button type="button" class="pim-btn-subtle" data-action="offer">{{#if u.offered}}<i class="fa-solid fa-eye-slash"></i> {{localize "PIM.Withdraw"}}{{else}}<i class="fa-solid fa-bullhorn"></i> {{localize "PIM.Offer"}}{{/if}}</button>{{/if}}
-              {{/if}}
-            </div>
-          </div>{{else}}<p class="pim-empty">{{localize "PIM.NoBuilds"}}</p>{{/each}}
-        </div>
-      {{/if}}
-
-      {{#if (eq tab "log")}}
-        <ul class="pim-log">
-          {{#each h.log}}
-          <li>
-            <time><i class="fa-regular fa-clock"></i> {{at}}</time>
-            <span>{{text}}</span>
-          </li>
-          {{else}}
-          <p class="pim-empty">{{localize "PIM.NoLog"}}</p>
-          {{/each}}
-        </ul>
-      {{/if}}
+      </div>
     </div>
-  </main>
-  {{else}}
-  <main class="pim-main pim-blank">
-    <div class="pim-blank-card">
-      <div class="pim-blank-icon"><i class="fa-solid fa-coins"></i></div>
-      <h2>{{localize "PIM.Title"}}</h2>
-      <p>{{localize "PIM.None"}}</p>
-      {{#if isGM}}
-      <button type="button" class="pim-btn-primary" data-action="create"><i class="fa-solid fa-plus"></i> {{localize "PIM.New"}}</button>
-      {{/if}}
-    </div>
-  </main>
-  {{/if}}
+    {{/if}}
+  </div>
 </div>

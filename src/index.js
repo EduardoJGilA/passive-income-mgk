@@ -230,65 +230,122 @@ function view(uid) {
 }
 
 // --- UI ---
-class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
+class HoldingSheetApp extends HandlebarsApplicationMixin(ApplicationV2) {
+  static #instances = new Map();
+  static get instances() { return this.#instances; }
+
+  static open(hid) {
+    let s = this.#instances.get(hid);
+    if (!s) {
+      s = new HoldingSheetApp({ hid });
+      this.#instances.set(hid, s);
+    }
+    return s.render(true);
+  }
+
+  static close(hid) {
+    const s = this.#instances.get(hid);
+    if (s) {
+      s.close();
+      this.#instances.delete(hid);
+    }
+  }
+
   static DEFAULT_OPTIONS = {
-    id: 'pim-app', classes: ['pim-window'],
-    window: { title: 'PIM.Title', icon: 'fa-solid fa-coins', resizable: true },
-    position: { width: 960, height: 720 },
+    classes: ['pim-window', 'pim-sheet-window'],
+    window: { title: 'PIM.Title', icon: 'fa-solid fa-landmark', resizable: true },
+    position: { width: 880, height: 720 },
     actions: {
-      select(_, el) { this.sel = el.dataset.id; this.render(); },
       goTab(_, el) { this.tab = el.dataset.tab; this.render(); },
-      filterHoldings(_, el) {
-        const q = el.value.trim().toLowerCase();
-        for (const item of this.element.querySelectorAll('.pim-item')) {
-          const match = !q || item.querySelector('.pim-item-txt').textContent.toLowerCase().includes(q);
-          item.style.display = match ? '' : 'none';
-        }
-      },
-      create: HoldingsApp.#create,
-      edit: (_, el) => new EditApp({ hid: HoldingsApp.#id(el) }).render(true),
-      remove: HoldingsApp.#remove,
-      tick: HoldingsApp.#tick,
-      sell: HoldingsApp.#sell,
-      export: HoldingsApp.#export,
-      import: HoldingsApp.#import,
-      transfer: HoldingsApp.#transfer,
-      fire: (_, el) => request('fire', HoldingsApp.#id(el)),
-      attend: (_, el) => request('attend', HoldingsApp.#id(el)),
-      collect: (_, el) => request('collect', HoldingsApp.#id(el), { aid: el.dataset.aid }),
-      collectAll: (_, el) => request('collectAll', HoldingsApp.#id(el)),
-      buy: (_, el) => request('buy', HoldingsApp.#id(el), { uid: el.closest('[data-uid]').dataset.uid }),
-      offer: (_, el) => request('offer', HoldingsApp.#id(el), { uid: el.closest('[data-uid]').dataset.uid }),
-      hire: (_, el) => request('hire', HoldingsApp.#id(el), { i: +el.closest('[data-i]').dataset.i }),
-      dismiss: (_, el) => request('dismiss', HoldingsApp.#id(el), { i: +el.closest('[data-i]').dataset.i })
+      fire: (_, el) => request('fire', this.options.hid),
+      edit: (_, el) => new EditApp({ hid: this.options.hid }).render(true),
+      export: (_, el) => HoldingsApp.exportHolding(this.options.hid),
+      sell: (_, el) => HoldingsApp.sellHolding(this.options.hid),
+      remove: (_, el) => HoldingsApp.removeHolding(this.options.hid),
+      attend: (_, el) => request('attend', this.options.hid),
+      collect: (_, el) => request('collect', this.options.hid, { aid: el.dataset.aid }),
+      collectAll: (_, el) => request('collectAll', this.options.hid),
+      buy: (_, el) => request('buy', this.options.hid, { uid: el.closest('[data-uid]').dataset.uid }),
+      offer: (_, el) => request('offer', this.options.hid, { uid: el.closest('[data-uid]').dataset.uid }),
+      hire: (_, el) => request('hire', this.options.hid, { i: +el.closest('[data-i]').dataset.i }),
+      dismiss: (_, el) => request('dismiss', this.options.hid, { i: +el.closest('[data-i]').dataset.i }),
+      transfer: (_, el) => HoldingsApp.transferHolding(this.options.hid, el)
     }
   };
-  static PARTS = { main: { template: `${T}main.hbs`, root: true, scrollable: ['.pim-side', '.pim-pane'] } };
-  static #id = el => el.closest('[data-id]').dataset.id;
+  static PARTS = { main: { template: `${T}sheet.hbs`, root: true, scrollable: ['.pim-pane'] } };
 
-  sel = null;
   tab = 'overview';
 
+  constructor(options = {}) {
+    super(options);
+    this.options = { ...options, ...this.options, id: `pim-sheet-${options.hid}` };
+  }
+
   async _prepareContext(o) {
-    const v = view(game.user.id), h = v.holdings.find(x => x.id === this.sel) ?? v.holdings[0];
-    this.sel = h?.id;
+    const v = view(game.user.id), h = v.holdings.find(x => x.id === this.options.hid);
+    if (!h) {
+      setTimeout(() => this.close(), 0);
+      return { isGM: v.isGM };
+    }
     const icons = { overview: 'fa-gauge-high', owners: 'fa-users', units: 'fa-people-group', builds: 'fa-hammer', log: 'fa-scroll' };
     const tabs = Object.entries(icons).map(([id, icon]) => ({ id, icon, label: t(`Tab.${id}`), active: this.tab === id }));
     const curSeason = season();
-    const curSeasonMult = h ? seasonMult(h.seasons, curSeason) : 1;
-    return { ...await super._prepareContext(o), ...v, h, tabs, tab: this.tab, cur: cur(), currentSeason: curSeason?.name, currentSeasonMult: curSeasonMult };
+    const curSeasonMult = seasonMult(h.seasons, curSeason);
+    return { ...await super._prepareContext(o), isGM: v.isGM, h, tabs, tab: this.tab, cur: cur(), currentSeason: curSeason?.name, currentSeasonMult: curSeasonMult };
   }
 
   _onRender(context, options) {
     super._onRender(context, options);
-    const search = this.element.querySelector('.pim-side-search input');
+    if (context.h?.name) {
+      const titleEl = this.element?.querySelector?.('.window-header .window-title');
+      if (titleEl) titleEl.textContent = context.h.name;
+    }
+  }
+
+  async close(options) {
+    HoldingSheetApp.#instances.delete(this.options?.hid);
+    return super.close ? super.close(options) : undefined;
+  }
+}
+
+class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
+  static DEFAULT_OPTIONS = {
+    id: 'pim-dir', classes: ['pim-window', 'pim-dir-window'],
+    window: { title: 'PIM.Title', icon: 'fa-solid fa-landmark', resizable: true },
+    position: { width: 840, height: 640 },
+    actions: {
+      openHolding: (_, el) => HoldingSheetApp.open(HoldingsApp.#id(el)),
+      filterHoldings(_, el) {
+        const q = el.value.trim().toLowerCase();
+        for (const card of this.element.querySelectorAll('.pim-dir-card')) {
+          const match = !q || card.textContent.toLowerCase().includes(q);
+          card.style.display = match ? '' : 'none';
+        }
+      },
+      create: HoldingsApp.#create,
+      edit: (_, el) => new EditApp({ hid: HoldingsApp.#id(el) }).render(true),
+      remove: (_, el) => HoldingsApp.removeHolding(HoldingsApp.#id(el)),
+      tick: HoldingsApp.#tick,
+      import: HoldingsApp.#import
+    }
+  };
+  static PARTS = { main: { template: `${T}main.hbs`, root: true, scrollable: ['.pim-dir-body'] } };
+  static #id = el => el.dataset.id || el.closest('[data-id]')?.dataset.id;
+
+  async _prepareContext(o) {
+    return { ...await super._prepareContext(o), ...view(game.user.id), cur: cur() };
+  }
+
+  _onRender(context, options) {
+    super._onRender(context, options);
+    const search = this.element.querySelector('.pim-dir-search input');
     if (search && !search.hasAttribute('data-bound')) {
       search.setAttribute('data-bound', '1');
       search.addEventListener('input', () => {
         const q = search.value.trim().toLowerCase();
-        for (const item of this.element.querySelectorAll('.pim-item')) {
-          const match = !q || item.querySelector('.pim-item-txt').textContent.toLowerCase().includes(q);
-          item.style.display = match ? '' : 'none';
+        for (const card of this.element.querySelectorAll('.pim-dir-card')) {
+          const match = !q || card.textContent.toLowerCase().includes(q);
+          card.style.display = match ? '' : 'none';
         }
       });
     }
@@ -375,15 +432,17 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (hookId && globalThis.Hooks?.off) Hooks.off('renderDialogV2', hookId);
     if (key !== null && key !== undefined) new EditApp({ preset: key }).render(true);
   }
-  static async #remove(_, el) {
-    const id = HoldingsApp.#id(el);
-    if (await DialogV2.confirm({ content: t('DeleteConfirm') })) mutate(d => d.splice(d.findIndex(h => h.id === id), 1));
+  static async removeHolding(id) {
+    if (await DialogV2.confirm({ content: t('DeleteConfirm') })) {
+      await mutate(d => d.splice(d.findIndex(h => h.id === id), 1));
+      HoldingSheetApp.close(id);
+    }
   }
-  static async #sell(_, el) { if (await DialogV2.confirm({ content: t('SellConfirm') })) request('sell', HoldingsApp.#id(el)); }
+  static async sellHolding(id) { if (await DialogV2.confirm({ content: t('SellConfirm') })) request('sell', id); }
   static async #tick() { if (await DialogV2.confirm({ content: t('TickConfirm') })) ops.tick(); }
-  static #export(_, el) {
-    const h = get().find(x => x.id === HoldingsApp.#id(el));
-    foundry.utils.saveDataToFile(JSON.stringify(exportable(h), null, 2), 'application/json', `${h.name}.json`);
+  static exportHolding(id) {
+    const h = get().find(x => x.id === id);
+    if (h) foundry.utils.saveDataToFile(JSON.stringify(exportable(h), null, 2), 'application/json', `${h.name}.json`);
   }
   static async #import() {
     const file = await DialogV2.prompt({
@@ -403,8 +462,9 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
       }));
     } catch { ui.notifications.error(t('ImportErr')); }
   }
-  static async #transfer(_, el) {
-    const id = HoldingsApp.#id(el), from = el.closest('[data-aid]').dataset.aid;
+  static async transferHolding(id, el) {
+    const from = el.closest('[data-aid]')?.dataset.aid;
+    if (!from) return;
     const opts = game.actors.contents.filter(a => a.id !== from).sort((a, b) => a.name.localeCompare(b.name)).map(a => `<option value="${a.id}" data-name="${esc(a.name.toLowerCase())}">${esc(a.name)}</option>`).join('');
     const r = await DialogV2.prompt({
       window: { title: t('Transfer') }, rejectClose: false,
@@ -675,11 +735,17 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
 }
 
 let app;
-const open = () => (app ??= new HoldingsApp()).render(true);
+function rerenderAll() {
+  if (app?.rendered) app.render();
+  for (const s of HoldingSheetApp.instances.values()) {
+    if (s.rendered) s.render();
+  }
+}
+const open = hid => (typeof hid === 'string' && hid) ? HoldingSheetApp.open(hid) : (app ??= new HoldingsApp()).render(true);
 
 Hooks.once('init', () => {
   const cfg = (key, type, def, extra = {}) => game.settings.register(ID, key, { name: `PIM.S.${key}`, hint: `PIM.S.${key}Hint`, scope: 'world', config: true, type, default: def, ...extra });
-  game.settings.register(ID, 'holdings', { scope: 'world', config: false, type: Array, default: [], onChange: () => { if (app?.rendered) app.render(); } });
+  game.settings.register(ID, 'holdings', { scope: 'world', config: false, type: Array, default: [], onChange: rerenderAll });
   game.settings.register(ID, 'lastTs', { scope: 'world', config: false, type: Number, default: 0 });
   cfg('auto', Boolean, true);
   cfg('periodDays', Number, 7);
@@ -700,14 +766,14 @@ Hooks.once('init', () => {
     default: 'auto',
     onChange: async v => {
       await applyLanguage(v);
-      if (app?.rendered) app.render();
+      rerenderAll();
     }
   });
 });
 
 Hooks.once('ready', () => {
   applyLanguage();
-  game.modules.get(ID).api = { open, tick: () => request('tick') };
+  game.modules.get(ID).api = { open, openHolding: hid => HoldingSheetApp.open(hid), tick: () => request('tick') };
   game.socket.on(`module.${ID}`, ({ action, id, data, user }) => {
     if (game.users.activeGM?.isSelf && ops[action] && !GM_ONLY.has(action)) ops[action](id, data, user);
   });

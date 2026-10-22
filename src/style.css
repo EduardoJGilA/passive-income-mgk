@@ -39,6 +39,9 @@
   background: var(--pim-bg);
   color: var(--pim-text);
   font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .pim-window ::-webkit-scrollbar {
@@ -60,8 +63,16 @@
 .pim {
   flex: 1;
   min-height: 0;
+  height: 100%;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+}
+.pim-sheet {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 .pim button {
   min-height: 34px;
@@ -316,6 +327,297 @@
   background: var(--pim-surface-2);
   color: var(--pim-text);
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Directory View */
+.pim-dir-root {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--pim-bg);
+}
+
+.pim-dir-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  background: rgba(14, 17, 23, 0.95);
+  border-bottom: 1px solid var(--pim-line);
+}
+
+.pim-dir-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pim-dir-brand-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--pim-radius-md);
+  background: rgba(var(--pim-accent-rgb), 0.12);
+  border: 1px solid rgba(var(--pim-accent-rgb), 0.3);
+  color: var(--pim-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex: none;
+}
+
+.pim-dir-brand-txt h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  border: none;
+  line-height: 1.2;
+}
+
+.pim-dir-subtitle {
+  font-size: 11px;
+  color: var(--pim-text-subtle);
+}
+
+.pim-dir-search {
+  flex: 1;
+  max-width: 340px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--pim-radius-sm);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--pim-line);
+  transition: border-color 0.15s ease;
+}
+.pim-dir-search:focus-within {
+  border-color: rgba(var(--pim-accent-rgb), 0.5);
+  box-shadow: 0 0 8px rgba(var(--pim-accent-rgb), 0.2);
+}
+.pim-dir-search i {
+  color: var(--pim-muted);
+  font-size: 12px;
+}
+.pim-dir-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent !important;
+  border: none !important;
+  color: var(--pim-text) !important;
+  font-size: 12px !important;
+  outline: none !important;
+  padding: 2px 0 !important;
+  box-shadow: none !important;
+}
+
+.pim-dir-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pim-dir-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding: 20px;
+}
+
+/* Directory Cards Grid */
+.pim-dir-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.pim-dir-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--pim-radius-lg);
+  background: var(--pim-surface-card);
+  border: 1px solid var(--pim-line);
+  overflow: hidden;
+  box-shadow: var(--pim-shadow-sm);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pim-dir-card:hover {
+  border-color: rgba(var(--pim-accent-rgb), 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transform: translateY(-2px);
+}
+
+.pim-dir-card-media {
+  position: relative;
+  height: 120px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #080a0f;
+}
+
+.pim-dir-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+  border: none;
+}
+
+.pim-dir-card:hover .pim-dir-card-media img {
+  transform: scale(1.05);
+}
+
+.pim-dir-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(14, 17, 23, 0.85) 100%);
+  pointer-events: none;
+}
+
+.pim-dir-card-media .pim-kind {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.pim-dir-card-badges {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+
+.pim-dir-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 14px;
+}
+
+.pim-dir-card-head {
+  cursor: pointer;
+}
+
+.pim-dir-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  border: none;
+  line-height: 1.3;
+}
+
+.pim-dir-card:hover .pim-dir-card-title {
+  color: var(--pim-accent-hover);
+}
+
+.pim-dir-card-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--pim-text-subtle);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pim-dir-card-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--pim-radius-sm);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pim-dir-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pim-dir-kpi-lbl {
+  font-size: 10px;
+  color: var(--pim-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pim-dir-kpi b {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.pim-dir-kpi small {
+  font-size: 10px;
+  color: var(--pim-text-subtle);
+  font-weight: normal;
+}
+
+.pim-dir-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pim-btn-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: var(--pim-radius-sm);
+  background: var(--pim-surface-2);
+  border: 1px solid var(--pim-line);
+  color: var(--pim-text);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.18s ease;
+  cursor: pointer;
+}
+
+.pim-btn-open:hover {
+  background: var(--pim-accent);
+  color: #1a1202;
+  border-color: var(--pim-accent-hover);
+  box-shadow: 0 2px 10px rgba(var(--pim-accent-rgb), 0.35);
+}
+
+.pim-dir-card-gm {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.pim-blank-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
 }
 
 /* Main Area */

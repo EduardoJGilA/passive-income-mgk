@@ -161,6 +161,8 @@
     "Debt": "Debt",
     "Season": "Season",
     "CurrentSeason": "Current season",
-    "Index": "Index"
+    "Index": "Index",
+    "ViewHolding": "View Holding",
+    "HoldingsCount": "holdings"
   }
 }

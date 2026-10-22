@@ -161,6 +161,8 @@
     "Debt": "Deuda",
     "Season": "Estación",
     "CurrentSeason": "Estación actual",
-    "Index": "Índice"
+    "Index": "Índice",
+    "ViewHolding": "Ver propiedad",
+    "HoldingsCount": "propiedades"
   }
 }
