@@ -265,15 +265,17 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #create() {
     const list = PRESETS();
     const blankHtml = `
-      <div class="pim-preset-card selected" data-key="">
+      <label class="pim-preset-card selected" data-key="" onclick="for(const c of this.closest('.pim-preset-grid').querySelectorAll('.pim-preset-card'))c.classList.remove('selected');this.classList.add('selected');" ondblclick="const r=this.querySelector('.pim-preset-radio');if(r)r.checked=true;this.closest('form')?.querySelector('button.ok,button[data-action=\\'ok\\']')?.click();">
+        <input type="radio" name="p" value="" checked class="pim-preset-radio">
         <div class="pim-preset-icon"><i class="fa-solid fa-feather-pointed"></i></div>
         <div class="pim-preset-info">
           <div class="pim-preset-title"><b>${t('Blank')}</b> <span class="pim-pill">${t('Custom')}</span></div>
           <p class="pim-preset-desc">${t('BlankDesc')}</p>
         </div>
-      </div>`;
+      </label>`;
     const cardsHtml = list.map(p => `
-      <div class="pim-preset-card" data-key="${p.key}">
+      <label class="pim-preset-card" data-key="${esc(p.key)}" onclick="for(const c of this.closest('.pim-preset-grid').querySelectorAll('.pim-preset-card'))c.classList.remove('selected');this.classList.add('selected');" ondblclick="const r=this.querySelector('.pim-preset-radio');if(r)r.checked=true;this.closest('form')?.querySelector('button.ok,button[data-action=\\'ok\\']')?.click();">
+        <input type="radio" name="p" value="${esc(p.key)}" class="pim-preset-radio">
         <div class="pim-preset-icon"><i class="fa-solid ${p.icon || 'fa-building'}"></i></div>
         <div class="pim-preset-info">
           <div class="pim-preset-title"><b>${esc(p.name)}</b> <span class="pim-pill">${esc(p.kind)}</span></div>
@@ -286,17 +288,43 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
             <span><i class="fa-solid fa-bolt"></i> ${p.events?.length || 0}</span>
           </div>
         </div>
-      </div>`).join('');
+      </label>`).join('');
 
     const content = `
       <div class="pim-preset-picker">
         <div class="pim-preset-search">
           <i class="fa-solid fa-magnifying-glass"></i>
-          <input type="search" class="pim-preset-filter-input" placeholder="${t('FilterTemplates')}" autocomplete="off">
+          <input type="search" class="pim-preset-filter-input" placeholder="${t('FilterTemplates')}" autocomplete="off" oninput="const q=this.value.trim().toLowerCase();for(const c of this.closest('.pim-preset-picker').querySelectorAll('.pim-preset-card'))c.style.display=!q||c.textContent.toLowerCase().includes(q)?'':'none';">
         </div>
-        <input type="hidden" name="p" value="">
         <div class="pim-preset-grid">${blankHtml}${cardsHtml}</div>
       </div>`;
+
+    let hookId;
+    const bindDialog = (dialog, html) => {
+      const root = html ?? dialog?.element;
+      if (!root?.querySelector?.('.pim-preset-picker')) return;
+      if (hookId && globalThis.Hooks?.off) Hooks.off('renderDialogV2', hookId);
+      const filter = root.querySelector('.pim-preset-filter-input');
+      const cards = root.querySelectorAll('.pim-preset-card');
+      filter?.addEventListener('input', () => {
+        const q = filter.value.trim().toLowerCase();
+        for (const c of cards) c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+      for (const card of cards) {
+        card.addEventListener('click', () => {
+          for (const c of cards) c.classList.remove('selected');
+          card.classList.add('selected');
+          const radio = card.querySelector('.pim-preset-radio');
+          if (radio) radio.checked = true;
+        });
+        card.addEventListener('dblclick', () => {
+          const radio = card.querySelector('.pim-preset-radio');
+          if (radio) radio.checked = true;
+          root.querySelector('button[data-action="ok"], button.ok')?.click();
+        });
+      }
+    };
+    hookId = Hooks.on('renderDialogV2', bindDialog);
 
     const key = await DialogV2.prompt({
       window: { title: t('TemplateSelect'), icon: 'fa-solid fa-shapes' },
@@ -304,28 +332,15 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
       position: { width: 840, height: 600 },
       rejectClose: false,
       content,
-      render: (_, html) => {
-        const input = html.querySelector('input[name="p"]');
-        const filter = html.querySelector('.pim-preset-filter-input');
-        const cards = html.querySelectorAll('.pim-preset-card');
-        filter?.addEventListener('input', () => {
-          const q = filter.value.trim().toLowerCase();
-          for (const c of cards) c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
-        });
-        for (const card of cards) {
-          card.addEventListener('click', () => {
-            cards.forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-            input.value = card.dataset.key;
-          });
-          card.addEventListener('dblclick', () => {
-            input.value = card.dataset.key;
-            html.closest('.dialog-form')?.querySelector('button.ok')?.click();
-          });
+      ok: {
+        label: t('SelectTemplate'),
+        callback: (_, b) => {
+          const checked = b.form?.querySelector?.('.pim-preset-radio:checked');
+          return checked ? checked.value : (b.form ? new FormData(b.form).get('p') : '') ?? '';
         }
-      },
-      ok: { label: t('SelectTemplate'), callback: (_, b) => b.form.elements.p.value }
+      }
     });
+    if (hookId && globalThis.Hooks?.off) Hooks.off('renderDialogV2', hookId);
     if (key !== null && key !== undefined) new EditApp({ preset: key }).render(true);
   }
   static async #remove(_, el) {
@@ -361,16 +376,8 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const opts = game.actors.contents.filter(a => a.id !== from).sort((a, b) => a.name.localeCompare(b.name)).map(a => `<option value="${a.id}" data-name="${esc(a.name.toLowerCase())}">${esc(a.name)}</option>`).join('');
     const r = await DialogV2.prompt({
       window: { title: t('Transfer') }, rejectClose: false,
-      content: `<div class="form-group"><label>${t('F.actor')}</label><div class="form-fields" style="flex-direction:column;align-items:stretch"><input type="search" class="pim-transfer-search" placeholder="${t('SearchActor')}" style="margin-bottom:6px"><select name="to" size="6" style="width:100%">${opts}</select></div></div>
+      content: `<div class="form-group"><label>${t('F.actor')}</label><div class="form-fields" style="flex-direction:column;align-items:stretch"><input type="search" class="pim-transfer-search" placeholder="${t('SearchActor')}" style="margin-bottom:6px" oninput="const q=this.value.trim().toLowerCase();for(const opt of this.nextElementSibling.options)opt.hidden=q&&!opt.dataset.name.includes(q);"><select name="to" size="6" style="width:100%">${opts}</select></div></div>
         <div class="form-group"><label>${t('F.pct')}</label><div class="form-fields"><input type="number" name="pct" value="10" min="1" max="100"></div></div>`,
-      render: (_, html) => {
-        const input = html.querySelector('.pim-transfer-search');
-        const sel = html.querySelector('select[name="to"]');
-        input?.addEventListener('input', () => {
-          const q = input.value.trim().toLowerCase();
-          for (const opt of sel.options) opt.hidden = q && !opt.dataset.name.includes(q);
-        });
-      },
       ok: { label: t('Transfer'), callback: (_, b) => ({ to: b.form.elements.to.value, pct: +b.form.elements.pct.value }) }
     });
     if (r?.to) request('transfer', id, { from, ...r });
