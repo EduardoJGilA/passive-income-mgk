@@ -68,14 +68,16 @@
       "stats": "Stats",
       "units": "Units / staff",
       "upgrades": "Buildings / upgrades",
-      "events": "Events"
+      "events": "Events",
+      "contracts": "Sales contracts"
     },
     "Hint": {
       "owners": "Share % of each actor. What is not assigned goes to the holding fund (pays for buildings and hiring).",
       "stats": "Each point adds 'per point' income every period. Max 0 = unlimited.",
-      "units": "Garrison, workers... Players hire (+) from the fund. Net per unit = income − upkeep.",
+      "units": "Garrison, workers... Players hire (+) from the fund. Cap: number, stat or stat*factor (e.g. Vines*2); workers above the cap cost upkeep but produce nothing. Prod: product units per month per worker.",
       "upgrades": "Offered by the GM. Effects: Morale+5;Guards+2 (stat or unit names).",
-      "events": "Amount / missed: formulas (gain or loss). Effects: Morale+5;Guards-2. Condition: Morale<30;Fund>100. Season: Fall,Summer. Weight: odds vs others. Deadline: periods to attend."
+      "events": "Amount / missed: formulas (gain or loss). Effects: Morale+5;Guards-2. Condition: Morale<30;Fund>100. Season: Fall,Summer. Weight: odds vs others. Deadline: periods to attend.",
+      "contracts": "Deals won in play: buyer, quantity per month, price each and length in months (0 = no end). Filled in order from production; surplus sells at the market price."
     },
     "F": {
       "actor": "Actor",
@@ -103,7 +105,13 @@
       "missedFx": "Effects if missed",
       "cond": "Condition",
       "season": "Season",
-      "item": "Item UUID"
+      "item": "Item UUID",
+      "cap": "Job cap",
+      "prod": "Prod./month each",
+      "buyer": "Buyer",
+      "qty": "Qty/month",
+      "price": "Price each",
+      "months": "Months (0 = forever)"
     },
     "S": {
       "language": "Interface Language",
@@ -140,7 +148,8 @@
       "owners": "Owners",
       "units": "Units",
       "builds": "Buildings",
-      "log": "Log"
+      "log": "Log",
+      "trade": "Trade"
     },
     "ETab": {
       "general": "General",
@@ -163,6 +172,19 @@
     "CurrentSeason": "Current season",
     "Index": "Index",
     "ViewHolding": "View Holding",
-    "HoldingsCount": "holdings"
+    "HoldingsCount": "holdings",
+    "Working": "Only {n} working: the rest are paid but produce nothing.",
+    "Made": "Production",
+    "Spare": "Surplus",
+    "Sales": "Sales",
+    "Month": "month",
+    "MonthsLeft": "months left",
+    "Short": "Short",
+    "NoContracts": "No contracts. The GM adds them in Edit → Economy.",
+    "Good": "Product",
+    "GoodPh": "e.g. bottles",
+    "Spot": "Market price (surplus)",
+    "ContractShort": "{name}: not enough for {buyer}, {n} {good} short.",
+    "ContractEnded": "{name}: contract with {buyer} ended."
   }
 }

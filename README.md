@@ -12,6 +12,11 @@ System-agnostic holdings for Foundry VTT v14: vineyards, quarries, taverns, vill
 - **Simple Calendar** (optional): every elapsed period (days, configurable) collects income and rolls events automatically. Otherwise use "Advance period" or `game.modules.get("passive-income-mgk").api.tick()`.
 - **Currency** is a label plus an actor path (e.g. `system.currency.gp`), or several denominations (`gp=system.currency.gp:1;sp=system.currency.sp:0.1`) paid out largest first. Works with any system.
 
+## Production and contracts
+- **Job cap** per unit: empty = unlimited, a number (`12`), a stat/unit name (`Vines`) or name times factor (`Vines*2`). Workers above the cap still cost upkeep but earn and produce nothing, so overstaffing lowers profit.
+- **Prod**: product units per month per working unit (e.g. 10 bottles). Set the product name and the market price for surplus in Edit → Economy.
+- **Contracts** (Edit → Economy): buyer, quantity per month, price each, months (0 = no end). Filled in order from production each period (prorated by period length); shortfalls and expiries are announced in chat. The Trade tab shows everything per month.
+
 ## Effects, conditions
 - Effects: `Morale+5;Guards-2` (stat or unit names, clamped between 0 and max).
 - Conditions: `Morale<30;Fund>100` (all must hold; `Fund`/`Fondo` is the holding fund).

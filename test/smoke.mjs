@@ -82,4 +82,15 @@ await ops.transfer('h1', { from: 'B', to: 'A', pct: 10 }, 'P1'); // P1 does not 
 assert.equal(H().shares.B, 50);
 await ops.sell('h1');
 assert.equal(store.holdings.length, 0);
+// trade: 30-day period, contract ends after 1 month and short delivery is announced
+store.periodDays = 30;
+store.holdings = [{ id: 'v1', name: 'Viñedo', income: '0', upkeep: '0', eventChance: 0, shares: { A: 100 }, good: 'botellas', spot: 0,
+  stats: [{ name: 'Viñas', value: 1, perPoint: 0, max: 0 }], units: [{ name: 'Vend', count: 3, upkeep: 1, income: 0, hire: 0, max: 0, cap: 'Viñas*2', prod: 10 }],
+  contracts: [{ buyer: 'Druida', qty: 30, price: 2, months: 1 }], events: [], upgrades: [] }];
+const chatBefore = chat.length;
+await ops.tick();
+const V = store.holdings[0];
+assert.equal(V.bal.A, 20 * 2 - 3 * 1, 'income = 20 bottles sold - upkeep of 3 workers');
+assert.equal(V.contracts.length, 0, 'contract expired');
+assert.ok(chat.slice(chatBefore).some(m => m.includes('ContractShort')) && chat.slice(chatBefore).some(m => m.includes('ContractEnded')));
 console.log('chat lines', chat.length, 'ok');

@@ -1,14 +1,51 @@
 export const r2 = x => Math.round(x * 100) / 100;
 export const sum = (a, f) => a.reduce((s, x) => s + f(x), 0);
 const lc = s => String(s ?? '').trim().toLowerCase();
-// stats: value * perPoint; units: count * (income - upkeep)
-export const passive = h => r2(sum(h.stats, s => s.value * s.perPoint) + sum(h.units, u => u.count * (u.income - u.upkeep)));
-
 // named numeric target: a stat (value) or a unit (count)
 const find = (h, n) => {
   const s = h.stats.find(x => lc(x.name) === lc(n)), u = h.units.find(x => lc(x.name) === lc(n));
   return s ? [s, 'value'] : u ? [u, 'count'] : [];
 };
+
+// unit job cap: "" = unlimited, "12", "Vines" or "Vines*2" (stat/unit name times factor)
+export function capOf(h, u) {
+  const [, name, k] = String(u.cap ?? '').trim().match(/^(.+?)\s*(?:\*\s*(\d*\.?\d+))?$/) ?? [];
+  if (!name) return Infinity;
+  if (!isNaN(name)) return +name * (+k || 1);
+  const [o, key] = find(h, name);
+  return o ? o[key] * (+k || 1) : 0;
+}
+// workers beyond the cap still cost upkeep but produce nothing
+export const working = (h, u) => Math.max(0, Math.min(u.count, capOf(h, u)));
+
+// stats: value * perPoint; units: working * income - count * upkeep
+export const passive = h => r2(sum(h.stats, s => s.value * s.perPoint) + sum(h.units, u => working(h, u) * u.income - u.count * u.upkeep));
+
+// goods made by working units (prod per month), sold to contracts in order, leftovers at spot price.
+// days = length of the period; contract qty/prod are per 30 days
+export function sales(h, days = 30) {
+  const f = days / 30, made = r2(sum(h.units, u => working(h, u) * (+u.prod || 0)) * f);
+  let left = made;
+  const rows = (h.contracts ?? []).map(c => {
+    const want = r2((+c.qty || 0) * f), got = r2(Math.min(want, left));
+    left = r2(left - got);
+    return { ...c, want, got, short: r2(want - got), revenue: r2(got * (+c.price || 0)) };
+  });
+  const spot = r2(left * (+h.spot || 0));
+  return { made, rows, spare: left, spot, total: r2(sum(rows, r => r.revenue) + spot) };
+}
+// age contracts by elapsed months; returns the ones that just ended (months 0 = no end)
+export function ageContracts(h, days) {
+  const ended = [];
+  h.contracts = (h.contracts ?? []).filter(c => {
+    if (!(+c.months > 0)) return true;
+    c.months = r2(c.months - days / 30);
+    if (c.months > 0) return true;
+    ended.push(c);
+    return false;
+  });
+  return ended;
+}
 
 // "Moral+5;Guardias-2" -> adjust stats/units by name, clamped to 0..max
 export function effects(h, str) {
@@ -87,6 +124,6 @@ export function split(n, coins) {
 // reusable template: no balances, owners, log or build progress
 export const exportable = h => ({
   name: h.name, img: h.img, desc: h.desc, kind: h.kind, income: h.income, upkeep: h.upkeep, eventChance: h.eventChance,
-  seasons: h.seasons, value: h.value, stats: h.stats, units: h.units, events: h.events,
+  seasons: h.seasons, value: h.value, good: h.good, spot: h.spot, stats: h.stats, units: h.units, events: h.events,
   upgrades: h.upgrades.map(({ id, offered, done, left, ...u }) => u)
 });

@@ -68,14 +68,16 @@
       "stats": "Stats",
       "units": "Unidades / personal",
       "upgrades": "Construcciones / mejoras",
-      "events": "Eventos"
+      "events": "Eventos",
+      "contracts": "Contratos de venta"
     },
     "Hint": {
       "owners": "% de cada actor. Lo que no se asigna va al fondo de la propiedad (paga construcciones y contrataciones).",
       "stats": "Cada punto suma 'por punto' de ingreso en cada periodo. Máx 0 = sin límite.",
-      "units": "Guarnición, trabajadores... Los jugadores contratan (+) del fondo. Neto por unidad = ingreso − mantenimiento.",
+      "units": "Guarnición, trabajadores... Los jugadores contratan (+) del fondo. Tope: número, stat o stat*factor (ej. Viñas*2); los que pasen del tope cobran mantenimiento sin producir. Prod: unidades del producto al mes por trabajador.",
       "upgrades": "Las ofrece el GM. Efectos: Moral+5;Guardias+2 (nombres de stats o unidades).",
-      "events": "Si asiste / ausente: fórmulas (ganancia o pérdida). Efectos: Moral+5;Guardias-2. Condición: Moral<30;Fondo>100. Estación: Otoño,Verano. Peso: probabilidad frente a los demás. Plazo: periodos para atenderlo."
+      "events": "Si asiste / ausente: fórmulas (ganancia o pérdida). Efectos: Moral+5;Guardias-2. Condición: Moral<30;Fondo>100. Estación: Otoño,Verano. Peso: probabilidad frente a los demás. Plazo: periodos para atenderlo.",
+      "contracts": "Contratos que consiguen en rol: comprador, cantidad al mes, precio c/u y duración en meses (0 = indefinido). Se surten en orden con la producción; lo que sobra se vende al precio de mercado."
     },
     "F": {
       "actor": "Actor",
@@ -103,7 +105,13 @@
       "missedFx": "Efectos si ausentes",
       "cond": "Condición",
       "season": "Estación",
-      "item": "UUID de ítem"
+      "item": "UUID de ítem",
+      "cap": "Tope de puestos",
+      "prod": "Prod./mes c/u",
+      "buyer": "Comprador",
+      "qty": "Cantidad/mes",
+      "price": "Precio c/u",
+      "months": "Meses (0 = siempre)"
     },
     "S": {
       "language": "Idioma de la interfaz",
@@ -140,7 +148,8 @@
       "owners": "Dueños",
       "units": "Unidades",
       "builds": "Construcciones",
-      "log": "Bitácora"
+      "log": "Bitácora",
+      "trade": "Comercio"
     },
     "ETab": {
       "general": "General",
@@ -163,6 +172,19 @@
     "CurrentSeason": "Estación actual",
     "Index": "Índice",
     "ViewHolding": "Ver propiedad",
-    "HoldingsCount": "propiedades"
+    "HoldingsCount": "propiedades",
+    "Working": "Solo {n} trabajando: el resto cobra sin producir.",
+    "Made": "Producción",
+    "Spare": "Excedente",
+    "Sales": "Ventas",
+    "Month": "mes",
+    "MonthsLeft": "meses restantes",
+    "Short": "Incumplido",
+    "NoContracts": "Sin contratos. El GM los agrega en Editar → Economía.",
+    "Good": "Producto",
+    "GoodPh": "ej. botellas",
+    "Spot": "Precio de mercado (excedente)",
+    "ContractShort": "{name}: no alcanzó para {buyer}, faltaron {n} {good}.",
+    "ContractEnded": "{name}: terminó el contrato con {buyer}."
   }
 }

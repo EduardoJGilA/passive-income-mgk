@@ -12,11 +12,11 @@
       {{#if h.desc}}<p class="pim-desc">{{h.desc}}</p>{{/if}}
     </div>
     {{#if isGM}}<div class="pim-gm">
-      <button type="button" class="pim-btn-icon" data-action="fire" data-tooltip="PIM.Fire"><i class="fa-solid fa-bolt"></i></button>
-      <button type="button" class="pim-btn-icon" data-action="edit" data-tooltip="PIM.Edit"><i class="fa-solid fa-pen-to-square"></i></button>
-      <button type="button" class="pim-btn-icon" data-action="export" data-tooltip="PIM.Export"><i class="fa-solid fa-file-export"></i></button>
-      <button type="button" class="pim-btn-icon" data-action="sell" data-tooltip="PIM.Sell"><i class="fa-solid fa-hand-holding-dollar"></i></button>
-      <button type="button" class="pim-btn-icon pim-btn-danger" data-action="remove" data-tooltip="PIM.Delete"><i class="fa-solid fa-trash"></i></button>
+      <button type="button" class="pim-btn-icon" data-action="fire" data-id="{{h.id}}" data-tooltip="PIM.Fire"><i class="fa-solid fa-bolt"></i></button>
+      <button type="button" class="pim-btn-icon" data-action="edit" data-id="{{h.id}}" data-tooltip="PIM.Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+      <button type="button" class="pim-btn-icon" data-action="export" data-id="{{h.id}}" data-tooltip="PIM.Export"><i class="fa-solid fa-file-export"></i></button>
+      <button type="button" class="pim-btn-icon" data-action="sell" data-id="{{h.id}}" data-tooltip="PIM.Sell"><i class="fa-solid fa-hand-holding-dollar"></i></button>
+      <button type="button" class="pim-btn-icon pim-btn-danger" data-action="remove" data-id="{{h.id}}" data-tooltip="PIM.Delete"><i class="fa-solid fa-trash"></i></button>
     </div>{{/if}}
   </header>
 
@@ -38,7 +38,7 @@
           </div>
           <p>{{h.pending.text}}</p>
         </div>
-        <button type="button" class="pim-btn-attend" data-action="attend"><i class="fa-solid fa-hand"></i> {{localize "PIM.Attend"}}</button>
+        <button type="button" class="pim-btn-attend" data-action="attend" data-id="{{h.id}}"><i class="fa-solid fa-hand"></i> {{localize "PIM.Attend"}}</button>
       </section>
       {{/if}}
 
@@ -91,7 +91,7 @@
     {{#if (eq tab "owners")}}
       {{#if isGM}}
       <div class="pim-tab-actions">
-        <button type="button" class="pim-btn-subtle" data-action="collectAll"><i class="fa-solid fa-money-bill-wave"></i> {{localize "PIM.CollectAll"}}</button>
+        <button type="button" class="pim-btn-subtle" data-action="collectAll" data-id="{{h.id}}"><i class="fa-solid fa-money-bill-wave"></i> {{localize "PIM.CollectAll"}}</button>
       </div>
       {{/if}}
       <div class="pim-cards">
@@ -106,8 +106,8 @@
             {{#if o.isDebt}}<span class="pim-pill pim-pill-debt">{{localize "PIM.Debt"}}</span>{{/if}}
           </div>
           <div class="pim-card-act">
-            {{#if o.canCollect}}<button type="button" class="pim-btn-collect" data-action="collect" data-aid="{{o.id}}"><i class="fa-solid fa-sack-dollar"></i> {{localize "PIM.Collect"}}</button>{{/if}}
-            {{#if o.canMove}}<button type="button" class="pim-btn-icon" data-action="transfer" data-tooltip="PIM.Transfer"><i class="fa-solid fa-right-left"></i></button>{{/if}}
+            {{#if o.canCollect}}<button type="button" class="pim-btn-collect" data-action="collect" data-aid="{{o.id}}" data-id="{{../h.id}}"><i class="fa-solid fa-sack-dollar"></i> {{localize "PIM.Collect"}}</button>{{/if}}
+            {{#if o.canMove}}<button type="button" class="pim-btn-icon" data-action="transfer" data-aid="{{o.id}}" data-id="{{../h.id}}" data-tooltip="PIM.Transfer"><i class="fa-solid fa-right-left"></i></button>{{/if}}
           </div>
         </div>{{else}}<p class="pim-empty">{{localize "PIM.NoOwners"}}</p>{{/each}}
       </div>
@@ -118,14 +118,37 @@
         {{#each h.units as |u|}}<div class="pim-card pim-unit-card" data-i="{{@index}}">
           <div class="pim-card-txt">
             <b>{{u.name}}</b>
-            <small class="pim-unit-eco"><i class="fa-solid fa-coins"></i> −{{u.upkeep}} / +{{u.income}} {{../cur}}</small>
+            <small class="pim-unit-eco"><i class="fa-solid fa-coins"></i> −{{u.upkeep}} / +{{u.income}} {{../cur}}{{#if u.prod}} · <i class="fa-solid fa-boxes-stacked"></i> {{u.prod}}{{/if}}</small>
+            {{#if u.idle}}<small class="pim-unit-idle"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PIM.Working" n=u.working}}</small>{{/if}}
           </div>
           <div class="pim-card-num"><b>{{u.count}}</b>{{#if u.max}}<small class="pim-card-max">/ {{u.max}}</small>{{/if}}</div>
           <div class="pim-card-act">
-            <button type="button" class="pim-btn-icon" data-action="dismiss" {{#unless u.count}}disabled{{/unless}} title="Dismiss"><i class="fa-solid fa-minus"></i></button>
-            <button type="button" class="pim-btn-hire" data-action="hire" {{#unless u.canHire}}disabled{{/unless}}><i class="fa-solid fa-plus"></i> {{u.hire}} {{../cur}}</button>
+            <button type="button" class="pim-btn-icon" data-action="dismiss" data-i="{{@index}}" data-id="{{../h.id}}" {{#unless u.count}}disabled{{/unless}} title="Dismiss"><i class="fa-solid fa-minus"></i></button>
+            <button type="button" class="pim-btn-hire" data-action="hire" data-i="{{@index}}" data-id="{{../h.id}}" {{#unless u.canHire}}disabled{{/unless}}><i class="fa-solid fa-plus"></i> {{u.hire}} {{../cur}}</button>
           </div>
         </div>{{else}}<p class="pim-empty">{{localize "PIM.NoUnits"}}</p>{{/each}}
+      </div>
+    {{/if}}
+
+    {{#if (eq tab "trade")}}
+      <div class="pim-kpis">
+        <div class="pim-kpi"><div class="pim-kpi-header"><span class="pim-kpi-icon"><i class="fa-solid fa-boxes-stacked"></i></span><label>{{localize "PIM.Made"}}</label></div>
+          <div class="pim-kpi-value"><b>{{h.trade.made}}</b><small>{{h.good}} / {{localize "PIM.Month"}}</small></div></div>
+        <div class="pim-kpi"><div class="pim-kpi-header"><span class="pim-kpi-icon"><i class="fa-solid fa-warehouse"></i></span><label>{{localize "PIM.Spare"}}</label></div>
+          <div class="pim-kpi-value"><b>{{h.trade.spare}}</b><small>× {{h.spot}} {{cur}}</small></div></div>
+        <div class="pim-kpi pim-kpi-income"><div class="pim-kpi-header"><span class="pim-kpi-icon"><i class="fa-solid fa-scale-balanced"></i></span><label>{{localize "PIM.Sales"}}</label></div>
+          <div class="pim-kpi-value"><b>{{h.trade.total}}</b><small>{{cur}} / {{localize "PIM.Month"}}</small></div></div>
+      </div>
+      <div class="pim-cards">
+        {{#each h.trade.rows as |c|}}<div class="pim-card pim-contract-card">
+          <div class="pim-card-txt">
+            <b>{{c.buyer}}</b>
+            <small>{{c.qty}} {{../h.good}} × {{c.price}} {{../cur}} / {{localize "PIM.Month"}}{{#if c.months}} · {{c.months}} {{localize "PIM.MonthsLeft"}}{{/if}}</small>
+          </div>
+          <div class="pim-card-num {{#if c.short}}pim-debt{{/if}}"><b>{{c.got}}/{{c.want}}</b>
+            {{#if c.short}}<span class="pim-pill pim-pill-debt">{{localize "PIM.Short"}}</span>{{/if}}</div>
+          <div class="pim-card-num"><b>+{{c.revenue}}</b><small>{{../cur}}</small></div>
+        </div>{{else}}<p class="pim-empty">{{localize "PIM.NoContracts"}}</p>{{/each}}
       </div>
     {{/if}}
 
@@ -155,8 +178,8 @@
             {{else if u.left}}
               <span class="pim-status-building"><i class="fa-solid fa-person-digging"></i></span>
             {{else}}
-              {{#if u.offered}}<button type="button" class="pim-btn-buy" data-action="buy" {{#unless u.afford}}disabled data-tooltip="PIM.NoFunds"{{/unless}}><i class="fa-solid fa-cart-shopping"></i> {{localize "PIM.Buy"}}</button>{{/if}}
-              {{#if ../isGM}}<button type="button" class="pim-btn-subtle" data-action="offer">{{#if u.offered}}<i class="fa-solid fa-eye-slash"></i> {{localize "PIM.Withdraw"}}{{else}}<i class="fa-solid fa-bullhorn"></i> {{localize "PIM.Offer"}}{{/if}}</button>{{/if}}
+              {{#if u.offered}}<button type="button" class="pim-btn-buy" data-action="buy" data-uid="{{u.id}}" data-id="{{../h.id}}" {{#unless u.afford}}disabled data-tooltip="PIM.NoFunds"{{/unless}}><i class="fa-solid fa-cart-shopping"></i> {{localize "PIM.Buy"}}</button>{{/if}}
+              {{#if ../isGM}}<button type="button" class="pim-btn-subtle" data-action="offer" data-uid="{{u.id}}" data-id="{{../h.id}}">{{#if u.offered}}<i class="fa-solid fa-eye-slash"></i> {{localize "PIM.Withdraw"}}{{else}}<i class="fa-solid fa-bullhorn"></i> {{localize "PIM.Offer"}}{{/if}}</button>{{/if}}
             {{/if}}
           </div>
         </div>{{else}}<p class="pim-empty">{{localize "PIM.NoBuilds"}}</p>{{/each}}

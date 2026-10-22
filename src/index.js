@@ -1,5 +1,5 @@
 import './style.css';
-import { r2, sum, passive, effects, credit, check, pick, seasonMult, okSeason, parseCoins, split, exportable } from './logic.js';
+import { r2, sum, passive, effects, credit, check, pick, seasonMult, okSeason, parseCoins, split, exportable, working, sales, ageContracts } from './logic.js';
 import { PRESETS } from './presets.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin, DialogV2 } = foundry.applications.api;
@@ -41,7 +41,7 @@ async function applyLanguage(l) {
 const byActor = o => Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [game.users.get(k)?.character?.id ?? k, v]));
 const defImg = h => (!h.img || h.img === 'icons/svg/house.svg' ? 'icons/environment/settlement/house-farmland.webp' : h.img);
 const get = () => foundry.utils.deepClone(set('holdings')).map(h => ({
-  fund: h.balance ?? 0, stats: [], units: [], upgrades: [], events: [], log: [], income: '0', upkeep: '0', eventChance: 0, seasons: '', value: 0, pending: null, ...h,
+  fund: h.balance ?? 0, stats: [], units: [], upgrades: [], events: [], log: [], income: '0', upkeep: '0', eventChance: 0, seasons: '', value: 0, good: '', spot: 0, contracts: [], pending: null, ...h,
   img: defImg(h),
   shares: byActor(h.shares ?? Object.fromEntries((h.owners ?? []).map(u => [u, Math.floor(100 / h.owners.length)]))), bal: byActor(h.bal)
 }));
@@ -91,9 +91,12 @@ const ops = {
         }
         for (const u of h.upgrades) if (u.left > 0 && !--u.left) { u.done = true; effects(h, u.fx); await say(t('Bought', { name: h.name, upgrade: u.name }), h); }
         const inc = r2(await roll(h.income) * seasonMult(h.seasons, season()));
-        const n = r2(inc + bonus(h) + passive(h) - await roll(h.upkeep));
+        const days = set('periodDays'), s = sales(h, days);
+        const n = r2(inc + bonus(h) + passive(h) + s.total - await roll(h.upkeep));
         credit(h, n);
         await say(t('Income_', { name: h.name, amount: fmt(n) }), h);
+        for (const r of s.rows) if (r.short > 0) await say(t('ContractShort', { name: h.name, buyer: r.buyer, n: r.short, good: h.good || '' }), h);
+        for (const c of ageContracts(h, days)) await say(t('ContractEnded', { name: h.name, buyer: c.buyer }), h);
         if (!h.pending && h.events.length && Math.random() * 100 < h.eventChance) await draw(h);
       }
     });
@@ -213,7 +216,8 @@ function view(uid) {
       return { id, name: a?.name ?? '?', img: a?.img, share, bal, isDebt: bal < 0, canCollect: bal > 0 && mine, canMove: mine };
     }),
     stats: h.stats.map(x => ({ ...x, pct: x.max ? Math.min(100, Math.round(x.value / x.max * 100)) : null })),
-    units: h.units.map(u => ({ ...u, canHire: h.fund >= u.hire && (!u.max || u.count < u.max) })),
+    units: h.units.map(u => ({ ...u, working: working(h, u), idle: u.count > working(h, u), canHire: h.fund >= u.hire && (!u.max || u.count < u.max) })),
+    trade: sales(h, 30), // shown per month; ticks use the real period length
     upgrades: h.upgrades.map(u => ({ ...u, show: isGM || u.offered || u.done || u.left, afford: h.fund >= u.cost && !u.left, pct: u.time ? Math.round((u.time - u.left) / u.time * 100) : 0 }))
   })).map(h => ({
     ...h, upgrades: h.upgrades.filter(u => u.show),
@@ -256,38 +260,80 @@ class HoldingSheetApp extends HandlebarsApplicationMixin(ApplicationV2) {
     window: { title: 'PIM.Title', icon: 'fa-solid fa-landmark', resizable: true },
     position: { width: 880, height: 720 },
     actions: {
-      goTab(_, el) { this.tab = el.dataset.tab; this.render(); },
-      fire: (_, el) => request('fire', this.options.hid),
-      edit: (_, el) => new EditApp({ hid: this.options.hid }).render(true),
-      export: (_, el) => HoldingsApp.exportHolding(this.options.hid),
-      sell: (_, el) => HoldingsApp.sellHolding(this.options.hid),
-      remove: (_, el) => HoldingsApp.removeHolding(this.options.hid),
-      attend: (_, el) => request('attend', this.options.hid),
-      collect: (_, el) => request('collect', this.options.hid, { aid: el.dataset.aid }),
-      collectAll: (_, el) => request('collectAll', this.options.hid),
-      buy: (_, el) => request('buy', this.options.hid, { uid: el.closest('[data-uid]').dataset.uid }),
-      offer: (_, el) => request('offer', this.options.hid, { uid: el.closest('[data-uid]').dataset.uid }),
-      hire: (_, el) => request('hire', this.options.hid, { i: +el.closest('[data-i]').dataset.i }),
-      dismiss: (_, el) => request('dismiss', this.options.hid, { i: +el.closest('[data-i]').dataset.i }),
-      transfer: (_, el) => HoldingsApp.transferHolding(this.options.hid, el)
+      goTab(event, target) {
+        this.tab = target.dataset.tab;
+        this.render();
+      },
+      fire(event, target) {
+        request('fire', this.getHid(target));
+      },
+      edit(event, target) {
+        const hid = this.getHid(target);
+        if (hid) new EditApp({ hid }).render(true);
+      },
+      export(event, target) {
+        HoldingsApp.exportHolding(this.getHid(target));
+      },
+      sell(event, target) {
+        HoldingsApp.sellHolding(this.getHid(target));
+      },
+      remove(event, target) {
+        HoldingsApp.removeHolding(this.getHid(target));
+      },
+      attend(event, target) {
+        request('attend', this.getHid(target));
+      },
+      collect(event, target) {
+        const aid = target.dataset.aid || target.closest('[data-aid]')?.dataset.aid;
+        request('collect', this.getHid(target), { aid });
+      },
+      collectAll(event, target) {
+        request('collectAll', this.getHid(target));
+      },
+      buy(event, target) {
+        const uid = target.dataset.uid || target.closest('[data-uid]')?.dataset.uid;
+        request('buy', this.getHid(target), { uid });
+      },
+      offer(event, target) {
+        const uid = target.dataset.uid || target.closest('[data-uid]')?.dataset.uid;
+        request('offer', this.getHid(target), { uid });
+      },
+      hire(event, target) {
+        const i = +(target.dataset.i ?? target.closest('[data-i]')?.dataset.i);
+        if (!Number.isNaN(i)) request('hire', this.getHid(target), { i });
+      },
+      dismiss(event, target) {
+        const i = +(target.dataset.i ?? target.closest('[data-i]')?.dataset.i);
+        if (!Number.isNaN(i)) request('dismiss', this.getHid(target), { i });
+      },
+      transfer(event, target) {
+        HoldingsApp.transferHolding(this.getHid(target), target);
+      }
     }
   };
   static PARTS = { main: { template: `${T}sheet.hbs`, root: true, scrollable: ['.pim-pane'] } };
 
   tab = 'overview';
+  hid = null;
 
   constructor(options = {}) {
     super(options);
+    this.hid = options.hid;
     this.options = { ...options, ...this.options, id: `pim-sheet-${options.hid}` };
   }
 
+  getHid(target) {
+    return this.hid || this.options?.hid || target?.dataset?.id || target?.closest?.('[data-id]')?.dataset?.id;
+  }
+
   async _prepareContext(o) {
-    const v = view(game.user.id), h = v.holdings.find(x => x.id === this.options.hid);
+    const hid = this.getHid();
+    const v = view(game.user.id), h = v.holdings.find(x => x.id === hid);
     if (!h) {
       setTimeout(() => this.close(), 0);
       return { isGM: v.isGM };
     }
-    const icons = { overview: 'fa-gauge-high', owners: 'fa-users', units: 'fa-people-group', builds: 'fa-hammer', log: 'fa-scroll' };
+    const icons = { overview: 'fa-gauge-high', owners: 'fa-users', units: 'fa-people-group', trade: 'fa-scale-balanced', builds: 'fa-hammer', log: 'fa-scroll' };
     const tabs = Object.entries(icons).map(([id, icon]) => ({ id, icon, label: t(`Tab.${id}`), active: this.tab === id }));
     const curSeason = season();
     const curSeasonMult = seasonMult(h.seasons, curSeason);
@@ -303,7 +349,7 @@ class HoldingSheetApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async close(options) {
-    HoldingSheetApp.#instances.delete(this.options?.hid);
+    HoldingSheetApp.#instances.delete(this.getHid());
     return super.close ? super.close(options) : undefined;
   }
 }
@@ -314,17 +360,26 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
     window: { title: 'PIM.Title', icon: 'fa-solid fa-landmark', resizable: true },
     position: { width: 840, height: 640 },
     actions: {
-      openHolding: (_, el) => HoldingSheetApp.open(HoldingsApp.#id(el)),
-      filterHoldings(_, el) {
-        const q = el.value.trim().toLowerCase();
+      openHolding(event, target) {
+        const id = target.dataset.id || target.closest('[data-id]')?.dataset.id;
+        if (id) HoldingSheetApp.open(id);
+      },
+      filterHoldings(event, target) {
+        const q = target.value.trim().toLowerCase();
         for (const card of this.element.querySelectorAll('.pim-dir-card')) {
           const match = !q || card.textContent.toLowerCase().includes(q);
           card.style.display = match ? '' : 'none';
         }
       },
       create: HoldingsApp.#create,
-      edit: (_, el) => new EditApp({ hid: HoldingsApp.#id(el) }).render(true),
-      remove: (_, el) => HoldingsApp.removeHolding(HoldingsApp.#id(el)),
+      edit(event, target) {
+        const id = target.dataset.id || target.closest('[data-id]')?.dataset.id;
+        if (id) new EditApp({ hid: id }).render(true);
+      },
+      remove(event, target) {
+        const id = target.dataset.id || target.closest('[data-id]')?.dataset.id;
+        if (id) HoldingsApp.removeHolding(id);
+      },
       tick: HoldingsApp.#tick,
       import: HoldingsApp.#import
     }
@@ -457,7 +512,7 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const arr = k => (Array.isArray(o[k]) ? o[k] : []);
       await mutate(d => d.push({
         name: String(o.name), img: o.img, desc: o.desc, kind: o.kind, income: o.income, upkeep: o.upkeep, eventChance: o.eventChance, seasons: o.seasons, value: o.value,
-        stats: arr('stats'), units: arr('units'), events: arr('events'), id: foundry.utils.randomID(), fund: 0, bal: {}, shares: {}, pending: null, log: [],
+        good: o.good ?? '', spot: +o.spot || 0, contracts: arr('contracts'), stats: arr('stats'), units: arr('units'), events: arr('events'), id: foundry.utils.randomID(), fund: 0, bal: {}, shares: {}, pending: null, log: [],
         upgrades: arr('upgrades').map(u => ({ ...u, id: foundry.utils.randomID(), offered: false, done: false, left: 0 }))
       }));
     } catch { ui.notifications.error(t('ImportErr')); }
@@ -477,7 +532,7 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
 }
 
 // --- editor: scalar fields via form data, row sections read straight from the DOM ---
-const PANE = { owners: 'owners', stats: 'mgmt', units: 'mgmt', upgrades: 'mgmt', events: 'events' };
+const PANE = { owners: 'owners', stats: 'mgmt', units: 'mgmt', contracts: 'economy', upgrades: 'mgmt', events: 'events' };
 const kinds = () => [['good', t('K.good')], ['neutral', t('K.neutral')], ['bad', t('K.bad')]];
 const C = (k, span, type = 'text', o = {}) => ({ k, span, type, ...o });
 const SECS = {
@@ -494,7 +549,15 @@ const SECS = {
     C('upkeep', 1, 'number', { def: 0, icon: 'fa-arrow-trend-down', ph: '0' }),
     C('income', 1, 'number', { def: 0, icon: 'fa-arrow-trend-up', ph: '0' }),
     C('hire', 1, 'number', { def: 0, icon: 'fa-coins', ph: '0' }),
-    C('max', 1, 'number', { def: 0, icon: 'fa-shield', ph: '0' })
+    C('max', 1, 'number', { def: 0, icon: 'fa-shield', ph: '0' }),
+    C('cap', 2, 'text', { icon: 'fa-briefcase', ph: 'e.g. Vines*2' }),
+    C('prod', 1, 'number', { def: 0, icon: 'fa-boxes-stacked', ph: '0' })
+  ],
+  contracts: [
+    C('buyer', 3, 'text', { icon: 'fa-handshake', ph: 'e.g. El Druida de Oro' }),
+    C('qty', 1, 'number', { def: 0, icon: 'fa-boxes-stacked', ph: '20' }),
+    C('price', 1, 'number', { def: 0, icon: 'fa-coins', ph: '1.5' }),
+    C('months', 1, 'number', { def: 0, icon: 'fa-calendar', ph: '0' })
   ],
   upgrades: [
     C('name', 3, 'text', { icon: 'fa-tag', ph: 'e.g. Stone Wall' }),
@@ -661,7 +724,7 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const { hid, preset } = this.options;
     return get().find(x => x.id === hid)
       ?? (preset && foundry.utils.deepClone(PRESETS().find(p => p.key === preset)))
-      ?? { name: t('New'), kind: '', income: '0', upkeep: '0', eventChance: 25, seasons: '', value: 0, stats: [], units: [], events: [], upgrades: [] };
+      ?? { name: t('New'), kind: '', income: '0', upkeep: '0', eventChance: 25, seasons: '', value: 0, good: '', spot: 0, stats: [], units: [], contracts: [], events: [], upgrades: [] };
   }
 
   async _prepareContext(o) {
@@ -671,7 +734,7 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return {
       ...await super._prepareContext(o), h, curSeason: season(),
       tabs: ['general', 'economy', 'owners', 'mgmt', 'events'].map((id, i) => ({ id, icon: editIcons[id], label: t(`ETab.${id}`), active: !i })),
-      sections: Object.keys(SECS).map(key => ({ key, pane: PANE[key], title: t(`Sec.${key}`), hint: game.i18n.has(`PIM.Hint.${key}`) ? t(`Hint.${key}`) : '', rows: data[key].map(r => row(key, r)).join(''), tpl: row(key) }))
+      sections: Object.keys(SECS).map(key => ({ key, pane: PANE[key], title: t(`Sec.${key}`), hint: game.i18n.has(`PIM.Hint.${key}`) ? t(`Hint.${key}`) : '', rows: (data[key] ?? []).map(r => row(key, r)).join(''), tpl: row(key) }))
     };
   }
 
@@ -715,13 +778,18 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
       };
       for (const ev of eventRows) { checkCond(ev.cond); checkFx(ev.fx); checkFx(ev.missedFx); }
       for (const up of upgradeRows) checkFx(up.fx);
+      for (const u of unitRows) {
+        const [, name] = String(u.cap || '').trim().match(/^(.+?)\s*(?:\*\s*\d*\.?\d+)?$/) ?? [];
+        if (name && isNaN(name) && !validNames.has(name.trim().toLowerCase())) unknownNames.add(name.trim());
+      }
       if (unknownNames.size) ui.notifications.warn(t('UnknownName', { names: [...unknownNames].join(', ') }));
 
       Object.assign(h, {
         name: f.name, img: f.img, desc: f.desc, kind: f.kind, income: f.income || '0', upkeep: f.upkeep || '0',
-        eventChance: +f.eventChance || 0, seasons: f.seasons, value: +f.value || 0, shares,
+        eventChance: +f.eventChance || 0, seasons: f.seasons, value: +f.value || 0, good: f.good || '', spot: +f.spot || 0, shares,
+        contracts: rows('contracts').filter(r => r.buyer).map(r => ({ buyer: r.buyer, ...num(r, 'qty', 'price', 'months') })),
         stats: statRows.map(r => ({ name: r.name, ...num(r, 'value', 'perPoint', 'max') })),
-        units: unitRows.map(r => ({ name: r.name, ...num(r, 'count', 'upkeep', 'income', 'hire', 'max') })),
+        units: unitRows.map(r => ({ name: r.name, cap: r.cap || '', ...num(r, 'count', 'upkeep', 'income', 'hire', 'max', 'prod') })),
         events: eventRows.map(r => ({ ...r, ...num(r, 'weight', 'deadline'), amount: r.amount || '0', missed: r.missed || '0' })),
         upgrades: upgradeRows.map(r => {
           const p = old?.upgrades.find(u => u.id === r.id);
