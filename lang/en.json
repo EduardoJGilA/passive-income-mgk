@@ -106,6 +106,8 @@
       "item": "Item UUID"
     },
     "S": {
+      "language": "Interface Language",
+      "languageHint": "Select language for Passive Income MGK (Auto follows Foundry language).",
       "auto": "Advance automatically with Simple Calendar",
       "autoHint": "Each elapsed period collects income and rolls events.",
       "periodDays": "Period (calendar days)",
@@ -117,6 +119,19 @@
       "coins": "Coin denominations (optional)",
       "coinsHint": "Overrides the path above. Format label=path:ratio;... with the base unit at ratio 1, e.g. gp=system.currency.gp:1;sp=system.currency.sp:0.1;cp=system.currency.cp:0.01"
     },
+    "Lang": {
+      "auto": "Auto (Foundry default)",
+      "es": "Español",
+      "en": "English"
+    },
+    "SearchActor": "Search actor or drop from sidebar...",
+    "NoActorMatch": "No matching actors found",
+    "SearchHoldings": "Filter holdings...",
+    "TemplateSelect": "Holding Templates",
+    "FilterTemplates": "Filter templates...",
+    "SelectTemplate": "Select Template",
+    "Custom": "Custom",
+    "BlankDesc": "Start with a clean slate and configure every detail yourself.",
     "NoGM": "A GM must be online for this action.",
     "NoEvents": "No eligible event (check conditions and season).",
     "OverShare": "Shares added up to more than 100%: scaled down.",

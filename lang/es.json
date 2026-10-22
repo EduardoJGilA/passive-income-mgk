@@ -106,6 +106,8 @@
       "item": "UUID de ítem"
     },
     "S": {
+      "language": "Idioma de la interfaz",
+      "languageHint": "Selecciona el idioma de Passive Income MGK (Auto usa el de Foundry).",
       "auto": "Avanzar automático con Simple Calendar",
       "autoHint": "Cada periodo transcurrido cobra ingresos y tira eventos.",
       "periodDays": "Periodo (días del calendario)",
@@ -117,6 +119,19 @@
       "coins": "Denominaciones (opcional)",
       "coinsHint": "Reemplaza la ruta de arriba. Formato etiqueta=ruta:razón;... con la unidad base en razón 1, ej. gp=system.currency.gp:1;sp=system.currency.sp:0.1;cp=system.currency.cp:0.01"
     },
+    "Lang": {
+      "auto": "Auto (por defecto de Foundry)",
+      "es": "Español",
+      "en": "English"
+    },
+    "SearchActor": "Buscar actor o arrastrar de la barra...",
+    "NoActorMatch": "No se encontraron actores coincidentes",
+    "SearchHoldings": "Filtrar propiedades...",
+    "TemplateSelect": "Plantillas de propiedad",
+    "FilterTemplates": "Filtrar plantillas...",
+    "SelectTemplate": "Seleccionar plantilla",
+    "Custom": "Personalizado",
+    "BlankDesc": "Empieza desde cero y configura cada detalle tú mismo.",
     "NoGM": "Se necesita un GM conectado para esta acción.",
     "NoEvents": "No hay eventos elegibles (revisa condiciones y estación).",
     "OverShare": "Las participaciones sumaban más de 100%: se ajustaron.",

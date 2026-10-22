@@ -4,6 +4,10 @@
       <span><i class="fa-solid fa-coins"></i> {{localize "PIM.Title"}}</span>
       <span class="pim-count">{{holdings.length}}</span>
     </div>
+    <div class="pim-side-search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="search" placeholder="{{localize "PIM.SearchHoldings"}}" data-action="filterHoldings">
+    </div>
     <div class="pim-side-list">
       {{#each holdings as |x|}}
       <button type="button" class="pim-item {{#if (eq x.id ../h.id)}}active{{/if}}" data-action="select" data-id="{{x.id}}">

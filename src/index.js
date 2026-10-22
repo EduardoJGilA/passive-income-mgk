@@ -18,6 +18,19 @@ const roll = async f => {
 };
 const bonus = h => sum(h.upgrades.filter(u => u.done), u => u.bonus);
 
+async function applyLanguage(l) {
+  if (typeof fetch !== 'function' || !globalThis.game?.modules?.get(ID)) return;
+  try {
+    l ??= set('language') || 'auto';
+    const code = (l === 'auto' ? game.i18n.lang : l) === 'es' ? 'es' : 'en';
+    const res = await fetch(`modules/${ID}/lang/${code}.json`);
+    if (res.ok) {
+      const json = await res.json();
+      foundry.utils.mergeObject(game.i18n.translations, json);
+    }
+  } catch {}
+}
+
 // shares/bal are keyed by actor id; legacy user-id keys map to that user's character
 const byActor = o => Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [game.users.get(k)?.character?.id ?? k, v]));
 const get = () => foundry.utils.deepClone(set('holdings')).map(h => ({
@@ -196,6 +209,13 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
     actions: {
       select(_, el) { this.sel = el.dataset.id; this.render(); },
       goTab(_, el) { this.tab = el.dataset.tab; this.render(); },
+      filterHoldings(_, el) {
+        const q = el.value.trim().toLowerCase();
+        for (const item of this.element.querySelectorAll('.pim-item')) {
+          const match = !q || item.querySelector('.pim-item-txt').textContent.toLowerCase().includes(q);
+          item.style.display = match ? '' : 'none';
+        }
+      },
       create: HoldingsApp.#create,
       edit: (_, el) => new EditApp({ hid: HoldingsApp.#id(el) }).render(true),
       remove: HoldingsApp.#remove,
@@ -227,12 +247,84 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return { ...await super._prepareContext(o), ...v, h, tabs, tab: this.tab, cur: cur() };
   }
 
+  _onRender(context, options) {
+    super._onRender(context, options);
+    const search = this.element.querySelector('.pim-side-search input');
+    if (search && !search.hasAttribute('data-bound')) {
+      search.setAttribute('data-bound', '1');
+      search.addEventListener('input', () => {
+        const q = search.value.trim().toLowerCase();
+        for (const item of this.element.querySelectorAll('.pim-item')) {
+          const match = !q || item.querySelector('.pim-item-txt').textContent.toLowerCase().includes(q);
+          item.style.display = match ? '' : 'none';
+        }
+      });
+    }
+  }
+
   static async #create() {
-    const opts = PRESETS().map(p => `<option value="${p.key}">${esc(p.name)}</option>`).join('');
+    const list = PRESETS();
+    const blankHtml = `
+      <div class="pim-preset-card selected" data-key="">
+        <div class="pim-preset-icon"><i class="fa-solid fa-feather-pointed"></i></div>
+        <div class="pim-preset-info">
+          <div class="pim-preset-title"><b>${t('Blank')}</b> <span class="pim-pill">${t('Custom')}</span></div>
+          <p class="pim-preset-desc">${t('BlankDesc')}</p>
+        </div>
+      </div>`;
+    const cardsHtml = list.map(p => `
+      <div class="pim-preset-card" data-key="${p.key}">
+        <div class="pim-preset-icon"><i class="fa-solid ${p.icon || 'fa-building'}"></i></div>
+        <div class="pim-preset-info">
+          <div class="pim-preset-title"><b>${esc(p.name)}</b> <span class="pim-pill">${esc(p.kind)}</span></div>
+          <p class="pim-preset-desc">${esc(p.desc)}</p>
+          <div class="pim-preset-stats">
+            <span><i class="fa-solid fa-coins"></i> ${esc(p.income)}</span>
+            <span><i class="fa-solid fa-arrow-trend-down"></i> ${esc(p.upkeep)}</span>
+            <span><i class="fa-solid fa-users"></i> ${p.units?.length || 0}</span>
+            <span><i class="fa-solid fa-hammer"></i> ${p.upgrades?.length || 0}</span>
+            <span><i class="fa-solid fa-bolt"></i> ${p.events?.length || 0}</span>
+          </div>
+        </div>
+      </div>`).join('');
+
+    const content = `
+      <div class="pim-preset-picker">
+        <div class="pim-preset-search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="search" class="pim-preset-filter-input" placeholder="${t('FilterTemplates')}" autocomplete="off">
+        </div>
+        <input type="hidden" name="p" value="">
+        <div class="pim-preset-grid">${blankHtml}${cardsHtml}</div>
+      </div>`;
+
     const key = await DialogV2.prompt({
-      window: { title: t('New') }, rejectClose: false,
-      content: `<div class="form-group"><label>${t('Preset')}</label><div class="form-fields"><select name="p"><option value="">${t('Blank')}</option>${opts}</select></div></div>`,
-      ok: { label: t('New'), callback: (_, b) => b.form.elements.p.value }
+      window: { title: t('TemplateSelect'), icon: 'fa-solid fa-shapes' },
+      classes: ['pim-window', 'pim-preset-dialog'],
+      position: { width: 840, height: 600 },
+      rejectClose: false,
+      content,
+      render: (_, html) => {
+        const input = html.querySelector('input[name="p"]');
+        const filter = html.querySelector('.pim-preset-filter-input');
+        const cards = html.querySelectorAll('.pim-preset-card');
+        filter?.addEventListener('input', () => {
+          const q = filter.value.trim().toLowerCase();
+          for (const c of cards) c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+        for (const card of cards) {
+          card.addEventListener('click', () => {
+            cards.forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            input.value = card.dataset.key;
+          });
+          card.addEventListener('dblclick', () => {
+            input.value = card.dataset.key;
+            html.closest('.dialog-form')?.querySelector('button.ok')?.click();
+          });
+        }
+      },
+      ok: { label: t('SelectTemplate'), callback: (_, b) => b.form.elements.p.value }
     });
     if (key !== null && key !== undefined) new EditApp({ preset: key }).render(true);
   }
@@ -266,14 +358,22 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
   static async #transfer(_, el) {
     const id = HoldingsApp.#id(el), from = el.closest('[data-aid]').dataset.aid;
-    const opts = game.actors.contents.filter(a => a.id !== from).sort((a, b) => a.name.localeCompare(b.name)).map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+    const opts = game.actors.contents.filter(a => a.id !== from).sort((a, b) => a.name.localeCompare(b.name)).map(a => `<option value="${a.id}" data-name="${esc(a.name.toLowerCase())}">${esc(a.name)}</option>`).join('');
     const r = await DialogV2.prompt({
       window: { title: t('Transfer') }, rejectClose: false,
-      content: `<div class="form-group"><label>${t('F.actor')}</label><div class="form-fields"><select name="to">${opts}</select></div></div>
+      content: `<div class="form-group"><label>${t('F.actor')}</label><div class="form-fields" style="flex-direction:column;align-items:stretch"><input type="search" class="pim-transfer-search" placeholder="${t('SearchActor')}" style="margin-bottom:6px"><select name="to" size="6" style="width:100%">${opts}</select></div></div>
         <div class="form-group"><label>${t('F.pct')}</label><div class="form-fields"><input type="number" name="pct" value="10" min="1" max="100"></div></div>`,
+      render: (_, html) => {
+        const input = html.querySelector('.pim-transfer-search');
+        const sel = html.querySelector('select[name="to"]');
+        input?.addEventListener('input', () => {
+          const q = input.value.trim().toLowerCase();
+          for (const opt of sel.options) opt.hidden = q && !opt.dataset.name.includes(q);
+        });
+      },
       ok: { label: t('Transfer'), callback: (_, b) => ({ to: b.form.elements.to.value, pct: +b.form.elements.pct.value }) }
     });
-    if (r) request('transfer', id, { from, ...r });
+    if (r?.to) request('transfer', id, { from, ...r });
   }
 }
 
@@ -282,18 +382,58 @@ const PANE = { owners: 'owners', stats: 'mgmt', units: 'mgmt', upgrades: 'mgmt',
 const kinds = () => [['good', t('K.good')], ['neutral', t('K.neutral')], ['bad', t('K.bad')]];
 const C = (k, span, type = 'text', o = {}) => ({ k, span, type, ...o });
 const SECS = {
-  owners: [C('actor', 4, 'select', { opts: () => game.actors.contents.map(a => [a.id, a.name]).sort((a, b) => a[1].localeCompare(b[1])).concat([['', '—']]) }), C('pct', 2, 'number', { def: 0 })],
-  stats: [C('name', 3), C('value', 1, 'number', { def: 0 }), C('perPoint', 1, 'number', { def: 0 }), C('max', 1, 'number', { def: 0 })],
-  units: [C('name', 2), C('count', 1, 'number', { def: 0 }), C('upkeep', 1, 'number', { def: 0 }), C('income', 1, 'number', { def: 0 }), C('hire', 1, 'number', { def: 0 }), C('max', 1, 'number', { def: 0 })],
-  upgrades: [C('name', 3), C('cost', 1, 'number', { def: 0 }), C('bonus', 1, 'number', { def: 0 }), C('time', 1, 'number', { def: 0 }), C('desc', 3), C('fx', 3)],
-  events: [C('kind', 2, 'select', { opts: kinds, def: 'neutral' }), C('title', 4), C('weight', 1, 'number', { def: 1 }), C('deadline', 1, 'number', { def: 1 }),
-    C('text', 6), C('amount', 2, 'text', { def: '0' }), C('missed', 2, 'text', { def: '0' }), C('item', 2),
-    C('cond', 3), C('season', 3), C('fx', 3), C('missedFx', 3)]
+  owners: [C('actor', 4, 'actor', { icon: 'fa-user' }), C('pct', 2, 'number', { def: 0, icon: 'fa-percent', ph: '0' })],
+  stats: [
+    C('name', 3, 'text', { icon: 'fa-tag', ph: 'e.g. Morale' }),
+    C('value', 1, 'number', { def: 0, icon: 'fa-hashtag', ph: '0' }),
+    C('perPoint', 1, 'number', { def: 0, icon: 'fa-chart-line', ph: '0' }),
+    C('max', 1, 'number', { def: 0, icon: 'fa-arrows-left-right', ph: '100' })
+  ],
+  units: [
+    C('name', 2, 'text', { icon: 'fa-user-shield', ph: 'e.g. Guard' }),
+    C('count', 1, 'number', { def: 0, icon: 'fa-users', ph: '0' }),
+    C('upkeep', 1, 'number', { def: 0, icon: 'fa-arrow-trend-down', ph: '0' }),
+    C('income', 1, 'number', { def: 0, icon: 'fa-arrow-trend-up', ph: '0' }),
+    C('hire', 1, 'number', { def: 0, icon: 'fa-coins', ph: '0' }),
+    C('max', 1, 'number', { def: 0, icon: 'fa-shield', ph: '0' })
+  ],
+  upgrades: [
+    C('name', 3, 'text', { icon: 'fa-tag', ph: 'e.g. Stone Wall' }),
+    C('cost', 1, 'number', { def: 0, icon: 'fa-coins', ph: '500' }),
+    C('bonus', 1, 'number', { def: 0, icon: 'fa-chart-line', ph: '15' }),
+    C('time', 1, 'number', { def: 0, icon: 'fa-hourglass-start', ph: '2' }),
+    C('desc', 3, 'text', { icon: 'fa-align-left', ph: 'Description of upgrade...' }),
+    C('fx', 3, 'text', { icon: 'fa-wand-magic-sparkles', ph: 'e.g. Morale+5;Defense+10' })
+  ],
+  events: [
+    C('kind', 2, 'select', { opts: kinds, def: 'neutral', icon: 'fa-circle-dot' }),
+    C('title', 4, 'text', { icon: 'fa-heading', ph: 'Event title...' }),
+    C('weight', 1, 'number', { def: 1, icon: 'fa-scale-balanced', ph: '1' }),
+    C('deadline', 1, 'number', { def: 1, icon: 'fa-clock', ph: '1' }),
+    C('text', 6, 'text', { icon: 'fa-scroll', ph: 'Event narrative text...' }),
+    C('amount', 2, 'text', { def: '0', icon: 'fa-hand-holding-dollar', ph: '3d10*5 or 50' }),
+    C('missed', 2, 'text', { def: '0', icon: 'fa-skull', ph: '-2d6*5 or -20' }),
+    C('item', 2, 'text', { icon: 'fa-box-open', ph: 'Compendium.pack.Item.xyz' }),
+    C('cond', 3, 'text', { icon: 'fa-filter', ph: 'e.g. Defense<30;Fund>100' }),
+    C('season', 3, 'text', { icon: 'fa-cloud-sun', ph: 'e.g. Fall, Winter' }),
+    C('fx', 3, 'text', { icon: 'fa-wand-magic-sparkles', ph: 'e.g. Morale+5;Guards-2' }),
+    C('missedFx', 3, 'text', { icon: 'fa-triangle-exclamation', ph: 'e.g. Morale-10;Pickers-2' })
+  ]
 };
-const field = (sec, c, v) => `<label class="pim-f pim-f-${c.k}"><span>${t(`F.${c.k}`)}</span>${
-  c.type === 'select'
-    ? `<select data-k="${c.k}">${c.opts().map(([val, lab]) => `<option value="${esc(val)}" ${val == v ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`
-    : `<input data-k="${c.k}" type="${c.type}" ${c.type === 'number' ? 'step="any"' : ''} value="${esc(v)}">`}</label>`;
+
+const field = (sec, c, v) => {
+  if (c.type === 'actor') {
+    const a = game.actors.get(v);
+    const name = a?.name ?? '';
+    const img = a?.img || 'icons/svg/mystery-man.svg';
+    return `<div class="pim-f pim-f-actor"><label><span>${c.icon ? `<i class="fa-solid ${c.icon}"></i> ` : ''}${t(`F.${c.k}`)}</span></label><div class="pim-actor-picker" data-id="${esc(v)}"><input type="hidden" data-k="actor" value="${esc(v)}"><div class="pim-actor-box"><img class="pim-actor-avatar" src="${esc(img)}" alt=""><input type="text" class="pim-actor-search" value="${esc(name)}" placeholder="${t('SearchActor')}"><button type="button" class="pim-actor-clear ${v ? '' : 'hidden'}" title="Clear"><i class="fa-solid fa-xmark"></i></button></div><div class="pim-actor-popover hidden"></div></div></div>`;
+  }
+  return `<label class="pim-f pim-f-${c.k}"><span>${c.icon ? `<i class="fa-solid ${c.icon}"></i> ` : ''}${t(`F.${c.k}`)}</span>${
+    c.type === 'select'
+      ? `<select data-k="${c.k}">${c.opts().map(([val, lab]) => `<option value="${esc(val)}" ${val == v ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`
+      : `<input data-k="${c.k}" type="${c.type}" ${c.type === 'number' ? 'step="any"' : ''} value="${esc(v)}" placeholder="${esc(c.ph ?? '')}">`}</label>`;
+};
+
 const row = (sec, o) => `<div class="pim-tr pim-tr-${sec}">${o?.id ? `<input type="hidden" data-k="id" value="${esc(o.id)}">` : ''}<div class="pim-tr-fields">${SECS[sec].map(c => field(sec, c, o?.[c.k] ?? c.def ?? '')).join('')}</div><button type="button" class="pim-del-row" data-action="delRow" title="${t('Delete')}"><i class="fa-solid fa-trash"></i></button></div>`;
 
 class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -305,12 +445,118 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
       etab(_, el) {
         for (const e of this.element.querySelectorAll('[data-tab],[data-pane]')) e.classList.toggle('active', (e.dataset.tab ?? e.dataset.pane) === el.dataset.tab);
       },
-      addRow(_, el) { const sec = el.closest('.pim-sec'); sec.querySelector('.pim-rows').append(sec.querySelector('template').content.cloneNode(true)); },
+      addRow(_, el) {
+        const sec = el.closest('.pim-sec');
+        const clone = sec.querySelector('template').content.cloneNode(true);
+        sec.querySelector('.pim-rows').append(clone);
+        EditApp.#bindPickers(sec);
+      },
       delRow(_, el) { el.closest('.pim-tr').remove(); }
     },
     form: { handler: EditApp.#submit, closeOnSubmit: true }
   };
   static PARTS = { main: { template: `${T}edit.hbs`, root: true, scrollable: ['.pim-edit-body'] } };
+
+  _onRender(context, options) {
+    super._onRender(context, options);
+    EditApp.#bindPickers(this.element);
+  }
+
+  static #bindPickers(root) {
+    for (const picker of root.querySelectorAll('.pim-actor-picker:not([data-bound])')) {
+      picker.setAttribute('data-bound', '1');
+      const input = picker.querySelector('.pim-actor-search');
+      const hidden = picker.querySelector('[data-k="actor"]');
+      const avatar = picker.querySelector('.pim-actor-avatar');
+      const popover = picker.querySelector('.pim-actor-popover');
+      const clearBtn = picker.querySelector('.pim-actor-clear');
+      if (!input || !hidden || !popover) continue;
+
+      const renderMatches = () => {
+        const q = input.value.trim().toLowerCase();
+        const matches = game.actors.contents.filter(a => !q || a.name.toLowerCase().includes(q)).slice(0, 30);
+        if (!matches.length) {
+          popover.innerHTML = `<div class="pim-actor-empty">${t('NoActorMatch')}</div>`;
+        } else {
+          popover.innerHTML = matches.map(a => `<div class="pim-actor-opt" data-id="${a.id}"><img src="${esc(a.img || 'icons/svg/mystery-man.svg')}"><span>${esc(a.name)}</span></div>`).join('');
+        }
+        popover.classList.remove('hidden');
+      };
+
+      input.addEventListener('focus', renderMatches);
+      input.addEventListener('input', renderMatches);
+
+      popover.addEventListener('mousedown', ev => {
+        const opt = ev.target.closest('.pim-actor-opt');
+        if (!opt) return;
+        const a = game.actors.get(opt.dataset.id);
+        if (a) {
+          hidden.value = a.id;
+          input.value = a.name;
+          avatar.src = a.img || 'icons/svg/mystery-man.svg';
+          clearBtn?.classList.remove('hidden');
+          popover.classList.add('hidden');
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => popover.classList.add('hidden'), 200);
+      });
+
+      clearBtn?.addEventListener('click', () => {
+        hidden.value = '';
+        input.value = '';
+        avatar.src = 'icons/svg/mystery-man.svg';
+        clearBtn.classList.add('hidden');
+        renderMatches();
+      });
+
+      picker.addEventListener('dragover', ev => { ev.preventDefault(); picker.classList.add('drag-over'); });
+      picker.addEventListener('dragleave', () => picker.classList.remove('drag-over'));
+      picker.addEventListener('drop', async ev => {
+        ev.preventDefault();
+        picker.classList.remove('drag-over');
+        let data;
+        try { data = typeof TextEditor?.getDragEventData === 'function' ? TextEditor.getDragEventData(ev) : JSON.parse(ev.dataTransfer.getData('text/plain')); } catch {}
+        if (data?.type !== 'Actor') return;
+        const a = data.uuid ? await fromUuid(data.uuid) : game.actors.get(data.id);
+        if (!a) return;
+        hidden.value = a.id;
+        input.value = a.name;
+        avatar.src = a.img || 'icons/svg/mystery-man.svg';
+        clearBtn?.classList.remove('hidden');
+        popover.classList.add('hidden');
+      });
+    }
+
+    const ownersSec = root.querySelector?.('.pim-sec[data-sec="owners"]') ?? root.closest?.('.pim-sec[data-sec="owners"]');
+    if (ownersSec && !ownersSec.hasAttribute('data-drop-bound')) {
+      ownersSec.setAttribute('data-drop-bound', '1');
+      ownersSec.addEventListener('dragover', ev => { ev.preventDefault(); ownersSec.classList.add('drag-over'); });
+      ownersSec.addEventListener('dragleave', () => ownersSec.classList.remove('drag-over'));
+      ownersSec.addEventListener('drop', async ev => {
+        if (ev.target.closest('.pim-actor-picker')) return;
+        ev.preventDefault();
+        ownersSec.classList.remove('drag-over');
+        let data;
+        try { data = typeof TextEditor?.getDragEventData === 'function' ? TextEditor.getDragEventData(ev) : JSON.parse(ev.dataTransfer.getData('text/plain')); } catch {}
+        if (data?.type !== 'Actor') return;
+        const a = data.uuid ? await fromUuid(data.uuid) : game.actors.get(data.id);
+        if (!a) return;
+        const tpl = ownersSec.querySelector('template');
+        const clone = tpl.content.cloneNode(true);
+        const p = clone.querySelector('.pim-actor-picker');
+        if (p) {
+          p.querySelector('[data-k="actor"]').value = a.id;
+          p.querySelector('.pim-actor-search').value = a.name;
+          p.querySelector('.pim-actor-avatar').src = a.img || 'icons/svg/mystery-man.svg';
+          p.querySelector('.pim-actor-clear')?.classList.remove('hidden');
+        }
+        ownersSec.querySelector('.pim-rows').append(clone);
+        EditApp.#bindPickers(ownersSec);
+      });
+    }
+  }
 
   #base() {
     const { hid, preset } = this.options;
@@ -373,9 +619,27 @@ Hooks.once('init', () => {
   cfg('currency', String, 'gp');
   cfg('currencyPath', String, '');
   cfg('coins', String, '');
+  game.settings.register(ID, 'language', {
+    name: 'PIM.S.language',
+    hint: 'PIM.S.languageHint',
+    scope: 'client',
+    config: true,
+    type: String,
+    choices: {
+      auto: 'PIM.Lang.auto',
+      es: 'Español',
+      en: 'English'
+    },
+    default: 'auto',
+    onChange: async v => {
+      await applyLanguage(v);
+      if (app?.rendered) app.render();
+    }
+  });
 });
 
 Hooks.once('ready', () => {
+  applyLanguage();
   game.modules.get(ID).api = { open, tick: () => request('tick') };
   game.socket.on(`module.${ID}`, ({ action, id, data, user }) => {
     if (game.users.activeGM?.isSelf && ops[action] && !GM_ONLY.has(action)) ops[action](id, data, user);
