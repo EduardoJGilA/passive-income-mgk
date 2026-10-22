@@ -4,23 +4,27 @@ const { ApplicationV2, HandlebarsApplicationMixin, DialogV2 } = foundry.applicat
 const ID = 'passive-income-mgk';
 const T = `modules/${ID}/templates/`;
 const t = (k, d) => d ? game.i18n.format(`PIM.${k}`, d) : game.i18n.localize(`PIM.${k}`);
-// fill defaults so holdings saved by older versions keep working
+// shares/bal are keyed by actor id; legacy user-id keys map to that user's character
+const byActor = o => Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [game.users.get(k)?.character?.id ?? k, v]));
 const get = () => foundry.utils.deepClone(game.settings.get(ID, 'holdings')).map(h => ({
-  fund: h.balance ?? 0, bal: {}, stats: [], units: [], upgrades: [], events: [], income: '0', upkeep: '0', eventChance: 0, pending: null, ...h,
-  shares: h.shares ?? Object.fromEntries((h.owners ?? []).map(u => [u, Math.floor(100 / h.owners.length)]))
+  fund: h.balance ?? 0, stats: [], units: [], upgrades: [], events: [], income: '0', upkeep: '0', eventChance: 0, pending: null, ...h,
+  shares: byActor(h.shares ?? Object.fromEntries((h.owners ?? []).map(u => [u, Math.floor(100 / h.owners.length)]))), bal: byActor(h.bal)
 }));
 const cur = () => game.settings.get(ID, 'currency');
 const fmt = n => `${n > 0 ? '+' : ''}${n} ${cur()}`;
 const lines = s => String(s || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => l.split('|').map(x => x.trim()));
 const roll = async f => Math.round((await new Roll(String(f || 0)).evaluate()).total) || 0;
 const bonus = h => h.upgrades.filter(u => u.done).reduce((s, u) => s + u.bonus, 0);
-const say = (content, h) => ChatMessage.create({ content, whisper: [...new Set([...Object.keys(h.shares), ...game.users.filter(u => u.isGM).map(u => u.id)])] });
-const owns = (h, u) => (h.shares[u] ?? 0) > 0 || game.users.get(u)?.isGM;
+// a user acts on a holding if GM or owner of any actor holding a share
+const ctl = (a, u) => game.actors.get(a)?.testUserPermission(game.users.get(u), 'OWNER');
+const owns = (h, u) => game.users.get(u)?.isGM || Object.keys(h.shares).some(a => ctl(a, u));
+const who = (h, u) => Object.keys(h.shares).find(a => ctl(a, u)) ?? Object.keys(h.shares)[0];
+const say = (content, h) => ChatMessage.create({ content, whisper: game.users.filter(u => owns(h, u.id)).map(u => u.id) });
 async function mutate(fn) { const d = get(); await fn(d); await game.settings.set(ID, 'holdings', d); }
 
 
-async function pay(userId, n) {
-  const a = game.users.get(userId)?.character, p = game.settings.get(ID, 'currencyPath');
+async function pay(actorId, n) {
+  const a = game.actors.get(actorId), p = game.settings.get(ID, 'currencyPath');
   if (!a || !p) return false;
   await a.update({ [p]: (foundry.utils.getProperty(a, p) || 0) + n });
   return true;
@@ -57,14 +61,14 @@ const ops = {
     effects(h, e.fx);
     h.pending = null;
     await say(t('Attended', { name: h.name, title: e.title, text: e.text, amount: fmt(n) }), h);
-    const item = e.item && await fromUuid(e.item), a = game.users.get(user)?.character;
+    const item = e.item && await fromUuid(e.item), a = game.actors.get(who(h, user));
     if (item && a) await a.createEmbeddedDocuments('Item', [item.toObject()]);
   }),
-  collect: (id, _, user) => mutate(async d => {
-    const h = d.find(x => x.id === id), n = h?.bal[user];
-    if (!n) return;
-    h.bal[user] = 0;
-    await pay(user, n);
+  collect: (id, { aid }, user) => mutate(async d => {
+    const h = d.find(x => x.id === id), n = h?.bal[aid];
+    if (!n || !(ctl(aid, user) || game.users.get(user)?.isGM)) return;
+    h.bal[aid] = 0;
+    await pay(aid, n);
     await say(t('Collected', { name: h.name, amount: `${n} ${cur()}` }), h);
   }),
   buy: (id, { uid }, user) => mutate(async d => {
@@ -113,7 +117,7 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: 'pim-app', classes: ['pim-window'],
     window: { title: 'PIM.Title', icon: 'fa-solid fa-coins', resizable: true },
-    position: { width: 520, height: 600 },
+    position: { width: 760, height: 760 },
     actions: {
       create: () => HoldingsApp.#edit(),
       edit: (_, el) => HoldingsApp.#edit(el.closest('[data-id]').dataset.id),
@@ -123,7 +127,7 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
       attend: (_, el) => request('attend', el.closest('[data-id]').dataset.id),
       hire: (_, el) => request('hire', el.closest('[data-id]').dataset.id, { i: +el.closest('[data-i]').dataset.i }),
       dismiss: (_, el) => request('dismiss', el.closest('[data-id]').dataset.id, { i: +el.closest('[data-i]').dataset.i }),
-      collect: (_, el) => request('collect', el.closest('[data-id]').dataset.id),
+      collect: (_, el) => request('collect', el.closest('[data-id]').dataset.id, { aid: el.dataset.aid }),
       buy: (_, el) => request('buy', el.closest('[data-id]').dataset.id, { uid: el.closest('[data-uid]').dataset.uid }),
       offer: (_, el) => request('offer', el.closest('[data-id]').dataset.id, { uid: el.closest('[data-uid]').dataset.uid })
     }
@@ -133,8 +137,11 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext(o) {
     const isGM = game.user.isGM, uid = game.user.id;
     const holdings = get().filter(h => isGM || owns(h, uid)).map(h => ({
-      ...h, mine: h.bal[uid] ?? 0, incomeTxt: bonus(h) ? `${h.income || 0}+${bonus(h)}` : h.income,
-      sharesTxt: Object.entries(h.shares).map(([u, p]) => `${game.users.get(u)?.name ?? '?'} ${p}%`).join(', '),
+      ...h, incomeTxt: bonus(h) ? `${h.income || 0}+${bonus(h)}` : h.income,
+      owners: Object.entries(h.shares).map(([id, share]) => {
+        const a = game.actors.get(id), bal = h.bal[id] ?? 0;
+        return { id, name: a?.name ?? '?', img: a?.img, share, bal, canCollect: bal > 0 && (isGM || ctl(id, uid)) };
+      }),
       passive: passive(h),
       units: h.units.map(u => ({ ...u, canHire: h.fund >= u.hire && (!u.max || u.count < u.max) })),
       upgrades: h.upgrades.map(u => ({ ...u, show: isGM || u.offered || u.done || u.left, afford: h.fund >= u.cost && !u.left }))
@@ -154,7 +161,8 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: 'pim-edit', tag: 'form', classes: ['pim-window'],
     window: { title: 'PIM.Edit', icon: 'fa-solid fa-pen' },
-    position: { width: 480, height: 'auto' },
+    position: { width: 680, height: 'auto' },
+    actions: { addOwner() { this.element.querySelector('#pim-rows').append(this.element.querySelector('#pim-row').content.cloneNode(true)); } },
     form: { handler: EditApp.#submit, closeOnSubmit: true }
   };
   static PARTS = { main: { template: `${T}edit.hbs`, root: true } };
@@ -163,7 +171,8 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const h = get().find(x => x.id === this.options.hid) ?? { name: t('New'), img: 'icons/svg/house.svg', kind: '', stats: [], units: [], income: '0', upkeep: '0', eventChance: 25, shares: {}, events: [], upgrades: [] };
     return {
       ...await super._prepareContext(o), h,
-      users: game.users.filter(u => !u.isGM).map(u => ({ id: u.id, name: u.name, share: h.shares[u.id] ?? 0 })),
+      owners: Object.entries(h.shares).map(([id, share]) => ({ id, share })),
+      actors: game.actors.contents.map(a => ({ id: a.id, name: a.name })).sort((a, b) => a.name.localeCompare(b.name)),
       events: h.events.map(e => [e.kind, e.title, e.text, e.amount, e.missed, e.item, e.fx, e.missedFx].join('|')).join('\n'),
       upgrades: h.upgrades.map(u => [u.name, u.cost, u.bonus, u.desc, u.time, u.fx].join('|')).join('\n'),
       stats: h.stats.map(s => [s.name, s.value, s.perPoint, s.max].join('|')).join('\n'),
@@ -178,7 +187,7 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const h = old ?? { id: foundry.utils.randomID(), fund: 0, bal: {}, pending: null };
       Object.assign(h, {
         name: f.name, img: f.img, desc: f.desc, kind: f.kind, income: f.income || '0', upkeep: f.upkeep || '0', eventChance: +f.eventChance || 0,
-        shares: Object.fromEntries(Object.entries(f.share ?? {}).map(([k, v]) => [k, +v || 0]).filter(([, v]) => v > 0)),
+        shares: Object.fromEntries([].concat(f.actor ?? []).map((a, i) => [a, +[].concat(f.pct)[i] || 0]).filter(([a, v]) => a && v > 0)),
         events: lines(f.events).map(([kind, title, text, a, m, item, fx, missedFx]) => ({ kind: kind || 'neutral', title, text: text || '', amount: a || '0', missed: m || '0', item: item || '', fx: fx || '', missedFx: missedFx || '' })),
         stats: lines(f.stats).map(([name, v, pp, max]) => ({ name, value: +v || 0, perPoint: +pp || 0, max: +max || 0 })),
         units: lines(f.units).map(([name, c, up, inc, hire, max]) => ({ name, count: +c || 0, upkeep: +up || 0, income: +inc || 0, hire: +hire || 0, max: +max || 0 })),

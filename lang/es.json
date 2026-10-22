@@ -53,6 +53,19 @@
     "Units": "Unidades / personal (nombre|cantidad|mant. c/u|ingreso c/u|costo contratar|máx)",
     "UnitsHint": "Ej. Guardias|5|2|0|50|20 (guarnición), Mineros|10|1|3|30|40, Aldeanos. Los jugadores contratan (+) del fondo o despiden (−).",
     "Building": "En obra (periodos restantes)",
-    "Passive": "Neto stats/unidades"
+    "Passive": "Neto stats/unidades",
+    "SecOwners": "Dueños",
+    "SecStats": "Stats",
+    "SecUnits": "Unidades",
+    "SecBuild": "Construcciones",
+    "AddOwner": "Añadir dueño (personaje o NPC)",
+    "Share": "% de participación",
+    "Gen": "General",
+    "Eco": "Economía",
+    "Man": "Gestión",
+    "Evt": "Eventos",
+    "IncomeShort": "Ingreso / periodo",
+    "None_": "—",
+    "Pending_": "Evento en espera"
   }
 }

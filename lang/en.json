@@ -53,6 +53,19 @@
     "Units": "Units / staff (name|count|upkeep each|income each|hire cost|max)",
     "UnitsHint": "E.g. Guards|5|2|0|50|20 (garrison), Miners|10|1|3|30|40, Villagers. Players hire (+) from the fund or dismiss (−).",
     "Building": "Building (periods left)",
-    "Passive": "Stats/units net"
+    "Passive": "Stats/units net",
+    "SecOwners": "Owners",
+    "SecStats": "Stats",
+    "SecUnits": "Units",
+    "SecBuild": "Buildings",
+    "AddOwner": "Add owner (character or NPC)",
+    "Share": "Share %",
+    "Gen": "General",
+    "Eco": "Economy",
+    "Man": "Management",
+    "Evt": "Events",
+    "IncomeShort": "Income / period",
+    "None_": "—",
+    "Pending_": "Event waiting"
   }
 }

@@ -5,53 +5,80 @@
   </header>{{/if}}
   {{#each holdings as |h|}}
   <article class="pim-card" data-id="{{h.id}}">
-    <div class="pim-head">
+    <header class="pim-top">
       <img src="{{h.img}}" alt="">
-      <div>
-        <h3>{{h.name}} {{#if h.kind}}<small>({{h.kind}})</small>{{/if}}</h3>
-        <small>{{localize "PIM.Income"}}: {{h.incomeTxt}}{{#if h.upkeep}} − {{h.upkeep}}{{/if}} {{../cur}}<br>
-        {{localize "PIM.Fund"}}: <b>{{h.fund}}</b> · {{localize "PIM.Mine"}}: <b>{{h.mine}}</b> {{../cur}} · {{h.sharesTxt}}{{#if h.passive}} · {{localize "PIM.Passive"}}: {{h.passive}}{{/if}}</small>
+      <div class="pim-title">
+        <h2>{{h.name}}</h2>
+        {{#if h.kind}}<span class="pim-kind">{{h.kind}}</span>{{/if}}
+        {{#if h.desc}}<p>{{h.desc}}</p>{{/if}}
       </div>
-      <div class="pim-btns">
-        <button type="button" data-action="collect" {{#unless h.mine}}disabled{{/unless}}>{{localize "PIM.Collect"}}</button>
-        {{#if ../isGM}}
+      <dl class="pim-money">
+        <div><dt>{{localize "PIM.Fund"}}</dt><dd>{{h.fund}} {{../cur}}</dd></div>
+        <div><dt>{{localize "PIM.IncomeShort"}}</dt><dd>{{h.incomeTxt}}{{#if h.passive}} {{#if (gt h.passive -1)}}+{{/if}}{{h.passive}}{{/if}}{{#if h.upkeep}} − {{h.upkeep}}{{/if}}</dd></div>
+      </dl>
+      {{#if ../isGM}}<div class="pim-gm">
         <button type="button" data-action="fire" title="{{localize "PIM.Fire"}}"><i class="fa-solid fa-bolt"></i></button>
         <button type="button" data-action="edit" title="{{localize "PIM.Edit"}}"><i class="fa-solid fa-pen"></i></button>
         <button type="button" data-action="remove" title="{{localize "PIM.Delete"}}"><i class="fa-solid fa-trash"></i></button>
-        {{/if}}
-      </div>
-    </div>
-    {{#if h.desc}}<p>{{h.desc}}</p>{{/if}}
-    {{#if h.stats.length}}<div class="pim-stats">{{#each h.stats}}<span class="pim-chip">{{name}}: <b>{{value}}{{#if max}}/{{max}}{{/if}}</b></span>{{/each}}</div>{{/if}}
-    {{#if h.units.length}}<ul class="pim-units">
-      {{#each h.units as |u|}}<li data-i="{{@index}}">
-        <span><b>{{u.name}}</b> ×{{u.count}}{{#if u.max}}/{{u.max}}{{/if}} <small>(−{{u.upkeep}} +{{u.income}} {{../../cur}})</small></span>
-        <span>
-          <button type="button" data-action="dismiss" {{#unless u.count}}disabled{{/unless}}><i class="fa-solid fa-minus"></i></button>
-          <button type="button" data-action="hire" {{#unless u.canHire}}disabled{{/unless}} title="{{u.hire}} {{../../cur}}"><i class="fa-solid fa-plus"></i> {{u.hire}}</button>
-        </span>
-      </li>{{/each}}
-    </ul>{{/if}}
+      </div>{{/if}}
+    </header>
+
     {{#if h.pending}}
     <div class="pim-event {{h.pending.kind}}">
-      <b>{{localize "PIM.Pending"}}: {{h.pending.title}}</b>
-      <p>{{h.pending.text}}</p>
+      <div><b>{{localize "PIM.Pending_"}}: {{h.pending.title}}</b><p>{{h.pending.text}}</p></div>
       <button type="button" data-action="attend">{{localize "PIM.Attend"}}</button>
     </div>
     {{/if}}
-    <ul class="pim-up">
-      {{#each h.upgrades as |u|}}{{#if u.show}}
-      <li data-uid="{{u.id}}" class="{{#if u.done}}done{{/if}}">
-        <span><b>{{u.name}}</b> (+{{u.bonus}}) — {{u.cost}} {{../../cur}}<br><small>{{u.desc}}</small></span>
-        {{#if u.done}}<em>{{localize "PIM.Done"}}</em>
-        {{else if u.left}}<em>{{localize "PIM.Building"}}: {{u.left}}</em>
-        {{else}}
-          {{#if u.offered}}{{#unless u.left}}<button type="button" data-action="buy" {{#unless u.afford}}disabled title="{{localize "PIM.NoFunds"}}"{{/unless}}>{{localize "PIM.Buy"}}</button>{{/unless}}{{/if}}
-          {{#if ../../isGM}}<button type="button" data-action="offer">{{#if u.offered}}{{localize "PIM.Withdraw"}}{{else}}{{localize "PIM.Offer"}}{{/if}}</button>{{/if}}
-        {{/if}}
-      </li>
-      {{/if}}{{/each}}
-    </ul>
+
+    <div class="pim-grid">
+      <section class="pim-box">
+        <h3>{{localize "PIM.SecOwners"}}</h3>
+        <ul class="pim-list">
+          {{#each h.owners as |o|}}<li data-aid="{{o.id}}">
+            <img src="{{o.img}}" alt="">
+            <span class="grow"><b>{{o.name}}</b><small>{{o.share}}%</small></span>
+            <span class="pim-num">{{o.bal}} {{../../cur}}</span>
+            {{#if o.canCollect}}<button type="button" data-action="collect" data-aid="{{o.id}}">{{localize "PIM.Collect"}}</button>{{/if}}
+          </li>{{/each}}
+        </ul>
+      </section>
+
+      {{#if h.stats.length}}<section class="pim-box">
+        <h3>{{localize "PIM.SecStats"}}</h3>
+        <ul class="pim-list">
+          {{#each h.stats}}<li><span class="grow">{{name}}</span><span class="pim-num">{{value}}{{#if max}} / {{max}}{{/if}}</span></li>{{/each}}
+        </ul>
+      </section>{{/if}}
+
+      {{#if h.units.length}}<section class="pim-box">
+        <h3>{{localize "PIM.SecUnits"}}</h3>
+        <ul class="pim-list">
+          {{#each h.units as |u|}}<li data-i="{{@index}}">
+            <span class="grow"><b>{{u.name}}</b><small>−{{u.upkeep}} / +{{u.income}} {{../../cur}}</small></span>
+            <span class="pim-num">{{u.count}}{{#if u.max}} / {{u.max}}{{/if}}</span>
+            <button type="button" data-action="dismiss" {{#unless u.count}}disabled{{/unless}}><i class="fa-solid fa-minus"></i></button>
+            <button type="button" data-action="hire" {{#unless u.canHire}}disabled{{/unless}} title="{{u.hire}} {{../../cur}}"><i class="fa-solid fa-plus"></i> {{u.hire}}</button>
+          </li>{{/each}}
+        </ul>
+      </section>{{/if}}
+
+      <section class="pim-box wide">
+        <h3>{{localize "PIM.SecBuild"}}</h3>
+        <ul class="pim-list">
+          {{#each h.upgrades as |u|}}{{#if u.show}}
+          <li data-uid="{{u.id}}" class="{{#if u.done}}done{{/if}}">
+            <span class="grow"><b>{{u.name}}</b><small>+{{u.bonus}}/{{localize "PIM.Income"}} · {{u.cost}} {{../../cur}}{{#if u.time}} · {{u.time}}p{{/if}}</small><small>{{u.desc}}</small></span>
+            {{#if u.done}}<em>{{localize "PIM.Done"}}</em>
+            {{else if u.left}}<em>{{localize "PIM.Building"}}: {{u.left}}</em>
+            {{else}}
+              {{#if u.offered}}<button type="button" data-action="buy" {{#unless u.afford}}disabled title="{{localize "PIM.NoFunds"}}"{{/unless}}>{{localize "PIM.Buy"}}</button>{{/if}}
+              {{#if ../../isGM}}<button type="button" data-action="offer">{{#if u.offered}}{{localize "PIM.Withdraw"}}{{else}}{{localize "PIM.Offer"}}{{/if}}</button>{{/if}}
+            {{/if}}
+          </li>
+          {{/if}}{{/each}}
+        </ul>
+      </section>
+    </div>
   </article>
-  {{else}}<p>{{localize "PIM.None"}}</p>{{/each}}
+  {{else}}<p class="pim-empty">{{localize "PIM.None"}}</p>{{/each}}
 </section>

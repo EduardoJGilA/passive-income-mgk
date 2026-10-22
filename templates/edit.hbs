@@ -1,18 +1,41 @@
 <div class="pim-edit">
-  <div class="form-group"><label>{{localize "PIM.Name"}}</label><input type="text" name="name" value="{{h.name}}"></div>
-  <div class="form-group"><label>{{localize "PIM.Image"}}</label><file-picker name="img" type="image" value="{{h.img}}"></file-picker></div>
-  <div class="form-group"><label>{{localize "PIM.Description"}}</label><textarea name="desc" rows="2">{{h.desc}}</textarea></div>
-  <div class="form-group"><label>{{localize "PIM.Kind"}}</label><input type="text" name="kind" value="{{h.kind}}"></div>
-  <div class="form-group"><label>{{localize "PIM.Income"}}</label><input type="text" name="income" value="{{h.income}}"></div>
-  <div class="form-group"><label>{{localize "PIM.Upkeep"}}</label><input type="text" name="upkeep" value="{{h.upkeep}}"></div>
-  <p class="hint">{{localize "PIM.IncomeHint"}}</p>
-  <div class="form-group"><label>{{localize "PIM.EventChance"}}</label><input type="number" name="eventChance" min="0" max="100" value="{{h.eventChance}}"></div>
-  <fieldset><legend>{{localize "PIM.Shares"}}</legend>
-    {{#each users}}<label class="pim-chk">{{name}} <input type="number" min="0" max="100" name="share.{{id}}" value="{{share}}">%</label>{{/each}}
+  <fieldset><legend>{{localize "PIM.Gen"}}</legend>
+    <div class="form-group"><label>{{localize "PIM.Name"}}</label><div class="form-fields"><input type="text" name="name" value="{{h.name}}"></div></div>
+    <div class="form-group"><label>{{localize "PIM.Kind"}}</label><div class="form-fields"><input type="text" name="kind" value="{{h.kind}}"></div></div>
+    <div class="form-group"><label>{{localize "PIM.Image"}}</label><div class="form-fields"><file-picker name="img" type="image" value="{{h.img}}"></file-picker></div></div>
+    <div class="form-group"><label>{{localize "PIM.Description"}}</label><div class="form-fields"><textarea name="desc" rows="3">{{h.desc}}</textarea></div></div>
   </fieldset>
-  <div class="form-group stacked"><label>{{localize "PIM.Stats"}}</label><textarea name="stats" rows="3">{{stats}}</textarea><p class="hint">{{localize "PIM.StatsHint"}}</p></div>
-  <div class="form-group stacked"><label>{{localize "PIM.Units"}}</label><textarea name="units" rows="3">{{units}}</textarea><p class="hint">{{localize "PIM.UnitsHint"}}</p></div>
-  <div class="form-group stacked"><label>{{localize "PIM.Events"}}</label><textarea name="events" rows="5">{{events}}</textarea><p class="hint">{{localize "PIM.EventsHint"}}</p></div>
-  <div class="form-group stacked"><label>{{localize "PIM.Upgrades"}}</label><textarea name="upgrades" rows="4">{{upgrades}}</textarea></div>
+
+  <fieldset><legend>{{localize "PIM.SecOwners"}}</legend>
+    <div id="pim-rows">
+      {{#each owners}}<div class="pim-row">
+        <select name="actor">{{selectOptions @root.actors selected=id valueAttr="id" labelAttr="name" blank=""}}</select>
+        <input type="number" name="pct" min="0" max="100" value="{{share}}" placeholder="{{localize "PIM.Share"}}"><span>%</span>
+      </div>{{/each}}
+    </div>
+    <template id="pim-row"><div class="pim-row">
+      <select name="actor">{{selectOptions actors blank="" valueAttr="id" labelAttr="name"}}</select>
+      <input type="number" name="pct" min="0" max="100" value="0" placeholder="{{localize "PIM.Share"}}"><span>%</span>
+    </div></template>
+    <button type="button" data-action="addOwner"><i class="fa-solid fa-user-plus"></i> {{localize "PIM.AddOwner"}}</button>
+    <p class="hint">{{localize "PIM.Shares"}}</p>
+  </fieldset>
+
+  <fieldset><legend>{{localize "PIM.Eco"}}</legend>
+    <div class="form-group"><label>{{localize "PIM.Income"}}</label><div class="form-fields"><input type="text" name="income" value="{{h.income}}"></div></div>
+    <div class="form-group"><label>{{localize "PIM.Upkeep"}}</label><div class="form-fields"><input type="text" name="upkeep" value="{{h.upkeep}}"></div></div>
+    <div class="form-group"><label>{{localize "PIM.EventChance"}}</label><div class="form-fields"><input type="number" name="eventChance" min="0" max="100" value="{{h.eventChance}}"></div></div>
+    <p class="hint">{{localize "PIM.IncomeHint"}}</p>
+  </fieldset>
+
+  <fieldset><legend>{{localize "PIM.Man"}}</legend>
+    <div class="form-group stacked"><label>{{localize "PIM.Stats"}}</label><textarea name="stats" rows="4">{{stats}}</textarea><p class="hint">{{localize "PIM.StatsHint"}}</p></div>
+    <div class="form-group stacked"><label>{{localize "PIM.Units"}}</label><textarea name="units" rows="4">{{units}}</textarea><p class="hint">{{localize "PIM.UnitsHint"}}</p></div>
+    <div class="form-group stacked"><label>{{localize "PIM.Upgrades"}}</label><textarea name="upgrades" rows="5">{{upgrades}}</textarea></div>
+  </fieldset>
+
+  <fieldset><legend>{{localize "PIM.Evt"}}</legend>
+    <div class="form-group stacked"><label>{{localize "PIM.Events"}}</label><textarea name="events" rows="7">{{events}}</textarea><p class="hint">{{localize "PIM.EventsHint"}}</p></div>
+  </fieldset>
   <footer class="form-footer"><button type="submit"><i class="fa-solid fa-save"></i> {{localize "PIM.Save"}}</button></footer>
 </div>
