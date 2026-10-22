@@ -1,28 +1,29 @@
-<div class="pim-edit">
-  <fieldset><legend>{{localize "PIM.Gen"}}</legend>
+<nav class="sheet-tabs tabs pim-tabs">
+  {{#each tabs}}<a class="{{#if active}}active{{/if}}" data-action="etab" data-tab="{{id}}">{{label}}</a>{{/each}}
+</nav>
+<div class="pim-edit-body">
+  <div class="pim-epane {{#if tabs.0.active}}active{{/if}}" data-pane="general">
     <div class="form-group"><label>{{localize "PIM.Name"}}</label><div class="form-fields"><input type="text" name="name" value="{{h.name}}"></div></div>
     <div class="form-group"><label>{{localize "PIM.Kind"}}</label><div class="form-fields"><input type="text" name="kind" value="{{h.kind}}"></div></div>
     <div class="form-group"><label>{{localize "PIM.Image"}}</label><div class="form-fields"><file-picker name="img" type="image" value="{{h.img}}"></file-picker></div></div>
-    <div class="form-group"><label>{{localize "PIM.Description"}}</label><div class="form-fields"><textarea name="desc" rows="2">{{h.desc}}</textarea></div></div>
+    <div class="form-group"><label>{{localize "PIM.Description"}}</label><div class="form-fields"><textarea name="desc" rows="3">{{h.desc}}</textarea></div></div>
     <div class="form-group"><label>{{localize "PIM.Value"}}</label><div class="form-fields"><input type="number" name="value" step="any" value="{{h.value}}"></div></div>
-  </fieldset>
-
-  <fieldset><legend>{{localize "PIM.Eco"}}</legend>
+  </div>
+  <div class="pim-epane" data-pane="economy">
     <div class="form-group"><label>{{localize "PIM.Income"}}</label><div class="form-fields"><input type="text" name="income" value="{{h.income}}"></div></div>
     <div class="form-group"><label>{{localize "PIM.Upkeep"}}</label><div class="form-fields"><input type="text" name="upkeep" value="{{h.upkeep}}"></div></div>
     <div class="form-group"><label>{{localize "PIM.EventChance"}}</label><div class="form-fields"><input type="number" name="eventChance" min="0" max="100" value="{{h.eventChance}}"></div></div>
     <div class="form-group"><label>{{localize "PIM.Seasons"}}</label><div class="form-fields"><input type="text" name="seasons" value="{{h.seasons}}"></div></div>
     <p class="hint">{{localize "PIM.IncomeHint"}} {{localize "PIM.SeasonsHint"}}</p>
-  </fieldset>
-
+  </div>
   {{#each sections}}
-  <fieldset><legend>{{title}}</legend>
+  <section class="pim-sec" data-pane="{{pane}}" data-sec="{{key}}">
+    <h3>{{title}}</h3>
     {{#if hint}}<p class="hint">{{hint}}</p>{{/if}}
     <div class="pim-rows" data-sec="{{key}}">{{{rows}}}</div>
     <template>{{{tpl}}}</template>
     <button type="button" data-action="addRow"><i class="fa-solid fa-plus"></i> {{localize "PIM.AddRow"}}</button>
-  </fieldset>
+  </section>
   {{/each}}
-
-  <footer class="form-footer"><button type="submit"><i class="fa-solid fa-save"></i> {{localize "PIM.Save"}}</button></footer>
 </div>
+<footer class="form-footer"><button type="submit"><i class="fa-solid fa-save"></i> {{localize "PIM.Save"}}</button></footer>

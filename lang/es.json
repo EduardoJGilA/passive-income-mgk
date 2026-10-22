@@ -119,6 +119,25 @@
     },
     "NoGM": "Se necesita un GM conectado para esta acción.",
     "NoEvents": "No hay eventos elegibles (revisa condiciones y estación).",
-    "OverShare": "Las participaciones sumaban más de 100%: se ajustaron."
+    "OverShare": "Las participaciones sumaban más de 100%: se ajustaron.",
+    "Tab": {
+      "overview": "Resumen",
+      "owners": "Dueños",
+      "units": "Unidades",
+      "builds": "Construcciones",
+      "log": "Bitácora"
+    },
+    "ETab": {
+      "general": "General",
+      "economy": "Economía",
+      "owners": "Dueños",
+      "mgmt": "Gestión",
+      "events": "Eventos"
+    },
+    "NoOwners": "Sin dueños. Edita la propiedad para asignar actores.",
+    "NoUnits": "Sin unidades.",
+    "NoBuilds": "Aún no hay construcciones disponibles.",
+    "NoLog": "Aún no ha pasado nada.",
+    "Per": "periodo"
   }
 }

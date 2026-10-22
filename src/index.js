@@ -170,13 +170,18 @@ function view(uid) {
       const a = game.actors.get(id), bal = h.bal[id] ?? 0, mine = isGM || ctl(id, uid);
       return { id, name: a?.name ?? '?', img: a?.img, share, bal, canCollect: bal > 0 && mine, canMove: mine };
     }),
+    stats: h.stats.map(x => ({ ...x, pct: x.max ? Math.min(100, Math.round(x.value / x.max * 100)) : null })),
     units: h.units.map(u => ({ ...u, canHire: h.fund >= u.hire && (!u.max || u.count < u.max) })),
-    upgrades: h.upgrades.map(u => ({ ...u, show: isGM || u.offered || u.done || u.left, afford: h.fund >= u.cost && !u.left }))
+    upgrades: h.upgrades.map(u => ({ ...u, show: isGM || u.offered || u.done || u.left, afford: h.fund >= u.cost && !u.left, pct: u.time ? Math.round((u.time - u.left) / u.time * 100) : 0 }))
+  })).map(h => ({
+    ...h, upgrades: h.upgrades.filter(u => u.show),
+    ready: h.upgrades.filter(u => u.offered && !u.done && !u.left && u.afford).length,
+    due: r2(sum(h.owners.filter(o => o.canCollect), o => o.bal))
   }));
   const sm = {
     events: holdings.filter(h => h.pending).length,
-    builds: sum(holdings, h => h.upgrades.filter(u => u.offered && !u.done && !u.left && u.afford).length),
-    collect: r2(sum(holdings, h => sum(h.owners.filter(o => o.canCollect), o => o.bal)))
+    builds: sum(holdings, h => h.ready),
+    collect: r2(sum(holdings, h => h.due))
   };
   sm.any = !!(sm.events || sm.builds || sm.collect);
   return { isGM, holdings, summary: sm };
@@ -187,8 +192,10 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: 'pim-app', classes: ['pim-window'],
     window: { title: 'PIM.Title', icon: 'fa-solid fa-coins', resizable: true },
-    position: { width: 780, height: 780 },
+    position: { width: 960, height: 720 },
     actions: {
+      select(_, el) { this.sel = el.dataset.id; this.render(); },
+      goTab(_, el) { this.tab = el.dataset.tab; this.render(); },
       create: HoldingsApp.#create,
       edit: (_, el) => new EditApp({ hid: HoldingsApp.#id(el) }).render(true),
       remove: HoldingsApp.#remove,
@@ -206,10 +213,19 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
       dismiss: (_, el) => request('dismiss', HoldingsApp.#id(el), { i: +el.closest('[data-i]').dataset.i })
     }
   };
-  static PARTS = { main: { template: `${T}main.hbs`, root: true } };
+  static PARTS = { main: { template: `${T}main.hbs`, root: true, scrollable: ['.pim-side', '.pim-pane'] } };
   static #id = el => el.closest('[data-id]').dataset.id;
 
-  async _prepareContext(o) { return { ...await super._prepareContext(o), ...view(game.user.id), cur: cur() }; }
+  sel = null;
+  tab = 'overview';
+
+  async _prepareContext(o) {
+    const v = view(game.user.id), h = v.holdings.find(x => x.id === this.sel) ?? v.holdings[0];
+    this.sel = h?.id;
+    const icons = { overview: 'fa-gauge-high', owners: 'fa-users', units: 'fa-people-group', builds: 'fa-hammer', log: 'fa-scroll' };
+    const tabs = Object.entries(icons).map(([id, icon]) => ({ id, icon, label: t(`Tab.${id}`), active: this.tab === id }));
+    return { ...await super._prepareContext(o), ...v, h, tabs, tab: this.tab, cur: cur() };
+  }
 
   static async #create() {
     const opts = PRESETS().map(p => `<option value="${p.key}">${esc(p.name)}</option>`).join('');
@@ -262,6 +278,7 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
 }
 
 // --- editor: scalar fields via form data, row sections read straight from the DOM ---
+const PANE = { owners: 'owners', stats: 'mgmt', units: 'mgmt', upgrades: 'mgmt', events: 'events' };
 const kinds = () => [['good', t('K.good')], ['neutral', t('K.neutral')], ['bad', t('K.bad')]];
 const C = (k, span, type = 'text', o = {}) => ({ k, span, type, ...o });
 const SECS = {
@@ -280,16 +297,19 @@ const row = (sec, o) => `<div class="pim-tr">${o?.id ? `<input type="hidden" dat
 
 class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
-    id: 'pim-edit', tag: 'form', classes: ['pim-window'],
+    id: 'pim-edit', tag: 'form', classes: ['pim-window', 'pim-edit'],
     window: { title: 'PIM.Edit', icon: 'fa-solid fa-pen', resizable: true },
-    position: { width: 760, height: 780 },
+    position: { width: 820, height: 760 },
     actions: {
+      etab(_, el) {
+        for (const e of this.element.querySelectorAll('[data-tab],[data-pane]')) e.classList.toggle('active', (e.dataset.tab ?? e.dataset.pane) === el.dataset.tab);
+      },
       addRow(_, el) { const f = el.closest('fieldset'); f.querySelector('.pim-rows').append(f.querySelector('template').content.cloneNode(true)); },
       delRow(_, el) { el.closest('.pim-tr').remove(); }
     },
     form: { handler: EditApp.#submit, closeOnSubmit: true }
   };
-  static PARTS = { main: { template: `${T}edit.hbs`, root: true } };
+  static PARTS = { main: { template: `${T}edit.hbs`, root: true, scrollable: ['.pim-edit-body'] } };
 
   #base() {
     const { hid, preset } = this.options;
@@ -303,7 +323,8 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const data = { ...h, owners: Object.entries(h.shares).map(([actor, pct]) => ({ actor, pct })) };
     return {
       ...await super._prepareContext(o), h,
-      sections: Object.keys(SECS).map(key => ({ key, title: t(`Sec.${key}`), hint: game.i18n.has(`PIM.Hint.${key}`) ? t(`Hint.${key}`) : '', rows: data[key].map(r => row(key, r)).join(''), tpl: row(key) }))
+      tabs: ['general', 'economy', 'owners', 'mgmt', 'events'].map((id, i) => ({ id, label: t(`ETab.${id}`), active: !i })),
+      sections: Object.keys(SECS).map(key => ({ key, pane: PANE[key], title: t(`Sec.${key}`), hint: game.i18n.has(`PIM.Hint.${key}`) ? t(`Hint.${key}`) : '', rows: data[key].map(r => row(key, r)).join(''), tpl: row(key) }))
     };
   }
 

@@ -119,6 +119,25 @@
     },
     "NoGM": "A GM must be online for this action.",
     "NoEvents": "No eligible event (check conditions and season).",
-    "OverShare": "Shares added up to more than 100%: scaled down."
+    "OverShare": "Shares added up to more than 100%: scaled down.",
+    "Tab": {
+      "overview": "Overview",
+      "owners": "Owners",
+      "units": "Units",
+      "builds": "Buildings",
+      "log": "Log"
+    },
+    "ETab": {
+      "general": "General",
+      "economy": "Economy",
+      "owners": "Owners",
+      "mgmt": "Management",
+      "events": "Events"
+    },
+    "NoOwners": "No owners yet. Edit the holding to assign actors.",
+    "NoUnits": "No units.",
+    "NoBuilds": "No buildings available yet.",
+    "NoLog": "Nothing has happened yet.",
+    "Per": "period"
   }
 }
