@@ -1,5 +1,5 @@
 import './style.css';
-import { r2, sum, passive, effects, credit, check, pick, seasonMult, okSeason, parseCoins, split, exportable, working, sales, ageContracts, staffBonus, wages, promote } from './logic.js';
+import { r2, sum, passive, effects, credit, check, pick, seasonMult, okSeason, parseCoins, split, exportable, working, sales, ageContracts, staffBonus, wages, promote, book, unpaid, ledger } from './logic.js';
 import { PRESETS } from './presets.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin, DialogV2 } = foundry.applications.api;
@@ -41,7 +41,7 @@ async function applyLanguage(l) {
 const byActor = o => Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [game.users.get(k)?.character?.id ?? k, v]));
 const defImg = h => (!h.img || h.img === 'icons/svg/house.svg' ? 'icons/environment/settlement/house-farmland.webp' : h.img);
 const get = () => foundry.utils.deepClone(set('holdings')).map(h => ({
-  fund: h.balance ?? 0, stats: [], units: [], upgrades: [], events: [], log: [], income: '0', upkeep: '0', eventChance: 0, seasons: '', value: 0, products: [], contracts: [], staff: [], pending: null, ...h,
+  fund: h.balance ?? 0, stats: [], units: [], upgrades: [], events: [], log: [], income: '0', upkeep: '0', eventChance: 0, seasons: '', value: 0, products: [], contracts: [], staff: [], retain: 0, unpaidFx: '', strikes: 0, pending: null, ...h,
   img: defImg(h),
   shares: byActor(h.shares ?? Object.fromEntries((h.owners ?? []).map(u => [u, Math.floor(100 / h.owners.length)]))), bal: byActor(h.bal)
 }));
@@ -60,12 +60,24 @@ const say = (content, h) => {
   return ChatMessage.create({ content: esc(content), whisper: game.users.filter(u => owns(h, u.id)).map(u => u.id) });
 };
 
+const purse = () => { const c = parseCoins(set('coins')); return c.length ? c : set('currencyPath') ? [{ path: set('currencyPath'), ratio: 1 }] : []; };
 async function pay(actorId, n) {
-  const a = game.actors.get(actorId);
-  const coins = parseCoins(set('coins')), list = coins.length ? coins : set('currencyPath') ? [{ path: set('currencyPath'), ratio: 1 }] : [];
+  const a = game.actors.get(actorId), list = purse();
   if (!a || !list.length) return false;
   const upd = {};
   for (const { path, k } of split(n, list)) upd[path] = (foundry.utils.getProperty(a, path) || 0) + k;
+  await a.update(upd);
+  return true;
+}
+
+// take n from an actor's purse; coins are re-made into the largest denominations (ponytail: no exact change-making)
+async function charge(actorId, n) {
+  const a = game.actors.get(actorId), list = purse();
+  if (!a || !list.length) return false;
+  const total = r2(sum(list, c => (foundry.utils.getProperty(a, c.path) || 0) * c.ratio));
+  if (total < n) return false;
+  const upd = Object.fromEntries(list.map(c => [c.path, 0]));
+  for (const { path, k } of split(r2(total - n), list)) upd[path] = k;
   await a.update(upd);
   return true;
 }
@@ -84,7 +96,7 @@ const ops = {
       for (const h of d) {
         if (h.pending && --h.pending.left <= 0) {
           const m = await roll(h.pending.missed);
-          credit(h, m);
+          if (book(h, m) > 0) await say(t('EventUnpaid', { name: h.name }), h);
           effects(h, h.pending.missedFx);
           await say(t('Missed', { name: h.name, title: h.pending.title, amount: fmt(m) }), h);
           h.pending = null;
@@ -94,9 +106,12 @@ const ops = {
         const mult = seasonMult(h.seasons, season()), inc = r2(await roll(h.income) * mult);
         const days = set('periodDays'), s = sales(h, days, mult);
         for (const p of s.products) { const hp = h.products.find(x => x.name === p.name); if (hp) hp.stock = p.left; } // ponytail: no spoilage, add a cap if stock piles up
-        const n = r2(inc + bonus(h) + passive(h) + s.total - wages(h) - await roll(h.upkeep));
-        credit(h, n);
-        await say(t('Income_', { name: h.name, amount: fmt(n) }), h);
+        const L = ledger(h, inc, await roll(h.upkeep), s.total), short = book(h, L.net);
+        await say(t('Books', { name: h.name, gross: L.gross, costs: L.costs, amount: fmt(L.net), fund: `${h.fund} ${cur()}` }), h);
+        const gone = short > 0 ? unpaid(h) : null;
+        if (gone) await say(t('Unpaid', { name: h.name, amount: `${short} ${cur()}`, gone: gone.join(', ') || '—', n: h.strikes }), h);
+        else if (short > 0) await say(t('FundShort', { name: h.name, amount: `${short} ${cur()}` }), h);
+        else h.strikes = 0;
         for (const r of s.rows) if (r.short > 0) await say(t('ContractShort', { name: h.name, buyer: r.buyer, n: r.short, good: r.product || '' }), h);
         for (const c of ageContracts(h, days)) await say(t('ContractEnded', { name: h.name, buyer: c.buyer }), h);
         if (!h.pending && h.events.length && Math.random() * 100 < h.eventChance) await draw(h);
@@ -109,7 +124,7 @@ const ops = {
     const h = d.find(x => x.id === id);
     if (!h?.pending || !owns(h, user)) return;
     const e = h.pending, n = await roll(e.amount);
-    credit(h, n);
+    if (book(h, n) > 0) await say(t('EventUnpaid', { name: h.name }), h);
     effects(h, e.fx);
     h.pending = null;
     await say(t('Attended', { name: h.name, title: e.title, text: e.text, amount: fmt(n) }), h);
@@ -123,6 +138,36 @@ const ops = {
     if (!ok) return void ui.notifications.warn(t('NoCurrencyPath'));
     h.bal[aid] = 0;
     await say(t('Collected', { name: h.name, amount: `${n} ${cur()}` }), h);
+  }),
+  // a character puts money into the holding fund, from their purse or from what the holding owes them
+  deposit: (id, { aid, n, from }, user) => mutate(async d => {
+    const h = d.find(x => x.id === id), a = game.actors.get(aid);
+    n = r2(+n);
+    if (!h || !a || !(n > 0) || !(ctl(aid, user) || game.users.get(user)?.isGM)) return;
+    if (from === 'bal') {
+      if ((h.bal[aid] ?? 0) < n) return void ui.notifications.warn(t('NotEnough'));
+      h.bal[aid] = r2(h.bal[aid] - n);
+    } else if (!await charge(aid, n)) return void ui.notifications.warn(t('NotEnough'));
+    h.fund = r2(h.fund + n);
+    await say(t('Deposited', { name: h.name, actor: a.name, amount: `${n} ${cur()}` }), h);
+  }),
+  // owners pay themselves out of the fund (split by shares)
+  distribute: (id, { n }, user) => mutate(async d => {
+    const h = d.find(x => x.id === id);
+    n = r2(+n);
+    if (!h || !(n > 0) || n > h.fund || !owns(h, user)) return;
+    h.fund = r2(h.fund - n);
+    credit(h, n);
+    await say(t('Distributed', { name: h.name, amount: `${n} ${cur()}` }), h);
+  }),
+  // one-off sale agreed in play (any buyer, any place): stock -> fund
+  sellNow: (id, { i, qty, price, buyer }, user) => mutate(async d => {
+    const h = d.find(x => x.id === id), p = h?.products[i];
+    qty = r2(+qty); price = r2(+price);
+    if (!p || !(qty > 0) || !(price >= 0) || qty > (+p.stock || 0) || !owns(h, user)) return void ui.notifications.warn(t('NotEnough'));
+    p.stock = r2(p.stock - qty);
+    book(h, r2(qty * price));
+    await say(t('SoldNow', { name: h.name, qty, unit: p.unit || p.name, buyer: buyer || '—', amount: `${r2(qty * price)} ${cur()}` }), h);
   }),
   collectAll: (id, _, user) => mutate(async d => {
     if (!game.users.get(user)?.isGM) return;
@@ -261,6 +306,7 @@ function view(uid) {
       pct: s.left ? Math.round((s.stars - s.left) / s.stars * 100) : 0
     })),
     wages: wages(h),
+    week: ledger(h, 0, 0, sales(h, set('periodDays'), seasonMult(h.seasons, season())).total), // expected books per period, without dice income/upkeep
     units: h.units.map(u => ({ ...u, working: working(h, u), idle: u.count > working(h, u), canHire: h.fund >= u.hire && (!u.max || u.count < u.max) })),
     trade: sales(h, 30, seasonMult(h.seasons, season())), // shown per month; ticks use the real period length
     upgrades: h.upgrades.map(u => ({ ...u, show: isGM || u.offered || u.done || u.left, locked: !u.done && !check(h, u.req), afford: h.fund >= u.cost && !u.left && check(h, u.req), pct: u.time ? Math.round((u.time - u.left) / u.time * 100) : 0 }))
@@ -337,6 +383,26 @@ class HoldingSheetApp extends HandlebarsApplicationMixin(ApplicationV2) {
       },
       collectAll(event, target) {
         request('collectAll', this.getHid(target));
+      },
+      deposit(event, target) {
+        HoldingsApp.depositHolding(this.getHid(target));
+      },
+      async distribute(event, target) {
+        const hid = this.getHid(target);
+        const n = await DialogV2.prompt({ window: { title: t('Distribute') }, rejectClose: false,
+          content: `<div class="form-group"><label>${t('Amount')}</label><div class="form-fields"><input type="number" name="n" min="0" step="any"></div></div><p class="hint">${t('DistributeHint')}</p>`,
+          ok: { label: t('Distribute'), callback: (_, b) => +b.form.elements.n.value } });
+        if (n > 0) request('distribute', hid, { n });
+      },
+      async sellNow(event, target) {
+        const hid = this.getHid(target), i = +target.closest('[data-p]').dataset.p, p = get().find(x => x.id === hid)?.products[i];
+        if (!p) return;
+        const r = await DialogV2.prompt({ window: { title: `${t('SellNow')}: ${p.name}` }, rejectClose: false,
+          content: `<div class="form-group"><label>${t('Buyer')}</label><div class="form-fields"><input type="text" name="buyer"></div></div>
+            <div class="form-group"><label>${t('Amount')} (${t('Stock')} ${p.stock ?? 0})</label><div class="form-fields"><input type="number" name="qty" min="0" step="any" max="${p.stock ?? 0}"></div></div>
+            <div class="form-group"><label>${t('F.price')}</label><div class="form-fields"><input type="number" name="price" min="0" step="any" value="${p.price || p.base || 0}"></div></div><p class="hint">${t('SellNowHint')}</p>`,
+          ok: { label: t('SellNow'), callback: (_, b) => ({ buyer: b.form.elements.buyer.value, qty: +b.form.elements.qty.value, price: +b.form.elements.price.value }) } });
+        if (r?.qty > 0) request('sellNow', hid, { i, ...r });
       },
       buy(event, target) {
         const uid = target.dataset.uid || target.closest('[data-uid]')?.dataset.uid;
@@ -590,6 +656,25 @@ class HoldingsApp extends HandlebarsApplicationMixin(ApplicationV2) {
       }));
     } catch { ui.notifications.error(t('ImportErr')); }
   }
+  // pick which of your characters pays: owners you control first, then any other actor you own (GM: everyone)
+  static async depositHolding(id) {
+    const h = get().find(x => x.id === id);
+    if (!h) return;
+    const mine = game.actors.contents.filter(a => a.isOwner && (game.user.isGM ? a.hasPlayerOwner || a.id in h.shares : true));
+    const list = [...mine.filter(a => a.id in h.shares), ...mine.filter(a => !(a.id in h.shares))];
+    if (!list.length) return ui.notifications.warn(t('NoActor'));
+    const wealth = a => r2(sum(purse(), c => (foundry.utils.getProperty(a, c.path) || 0) * c.ratio));
+    const opts = list.map(a => `<option value="${a.id}">${esc(a.name)} — ${t('Purse')} ${wealth(a)} · ${t('Owed')} ${h.bal[a.id] ?? 0} ${cur()}</option>`).join('');
+    const r = await DialogV2.prompt({
+      window: { title: t('Deposit') }, rejectClose: false,
+      content: `<div class="form-group"><label>${t('F.actor')}</label><div class="form-fields"><select name="aid">${opts}</select></div></div>
+        <div class="form-group"><label>${t('Amount')}</label><div class="form-fields"><input type="number" name="n" min="0" step="any" value="10"></div></div>
+        <div class="form-group"><label>${t('From')}</label><div class="form-fields"><select name="from"><option value="purse">${t('Purse')}</option><option value="bal">${t('Owed')}</option></select></div></div>
+        <p class="hint">${t('DepositHint')}</p>`,
+      ok: { label: t('Deposit'), callback: (_, b) => ({ aid: b.form.elements.aid.value, n: +b.form.elements.n.value, from: b.form.elements.from.value }) }
+    });
+    if (r?.aid && r.n > 0) request('deposit', id, r);
+  }
   static async transferHolding(id, el) {
     const from = el.closest('[data-aid]')?.dataset.aid;
     if (!from) return;
@@ -830,7 +915,7 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const { hid, preset } = this.options;
     return get().find(x => x.id === hid)
       ?? (preset && foundry.utils.deepClone([...PRESETS(), ...set('templates')].find(p => p.key === preset)))
-      ?? { name: t('New'), kind: '', income: '0', upkeep: '0', eventChance: 25, seasons: '', value: 0, stats: [], units: [], staff: [], products: [], contracts: [], events: [], upgrades: [] };
+      ?? { name: t('New'), kind: '', income: '0', upkeep: '0', eventChance: 25, seasons: '', value: 0, retain: 100, unpaidFx: '', stats: [], units: [], staff: [], products: [], contracts: [], events: [], upgrades: [] };
   }
 
   async _prepareContext(o) {
@@ -886,6 +971,7 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
       for (const up of upgradeRows) { checkFx(up.fx); checkCond(up.req); }
       const staffRows = rows('staff').filter(r => r.name);
       for (const s of staffRows) checkFx(s.fx);
+      checkFx(f.unpaidFx);
       const productRows = rows('products').filter(r => r.name);
       const checkVal = expr => {
         const [, name] = String(expr || '').trim().match(/^(.+?)\s*(?:\*\s*\d*\.?\d+)?$/) ?? [];
@@ -899,7 +985,7 @@ class EditApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
       Object.assign(h, {
         name: f.name, img: f.img, desc: f.desc, kind: f.kind, income: f.income || '0', upkeep: f.upkeep || '0',
-        eventChance: +f.eventChance || 0, seasons: f.seasons, value: +f.value || 0, shares,
+        eventChance: +f.eventChance || 0, seasons: f.seasons, value: +f.value || 0, retain: Math.min(100, Math.max(0, +f.retain || 0)), unpaidFx: f.unpaidFx || '', shares,
         products: productRows.map(r => ({ name: r.name, unit: r.unit || '', quality: r.quality || '', demand: r.demand || '', cond: r.cond || '', img: r.img || '', desc: r.desc || '', ...num(r, 'base', 'price', 'stock', 'spoil') })),
         contracts: rows('contracts').filter(r => r.buyer).map(r => ({ buyer: r.buyer, product: r.product || '', desc: r.desc || '', ...num(r, 'qty', 'price', 'months') })),
         stats: statRows.map(r => ({ name: r.name, ...num(r, 'value', 'perPoint', 'max') })),

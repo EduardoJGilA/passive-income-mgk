@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 const r2x = x => Math.round(x * 100) / 100;
-import { passive, effects, credit, check, pick, seasonMult, okSeason, parseCoins, split, exportable, val, capOf, working, fair, demand, sales, ageContracts, staffBonus, wages, promote } from './src/logic.js';
+import { passive, effects, credit, check, pick, seasonMult, okSeason, parseCoins, split, exportable, val, capOf, working, fair, demand, sales, ageContracts, staffBonus, wages, promote, book, unpaid, ledger } from './src/logic.js';
 const mk = () => ({ shares: { a: 50, b: 30 }, bal: {}, fund: 0, stats: [{ name: 'Moral', value: 50, perPoint: 0, max: 60 }, { name: 'Pob', value: 10, perPoint: 0.5, max: 0 }], units: [{ name: 'Guardias', count: 5, income: 0, upkeep: 2, max: 8 }] });
 const h = mk();
 credit(h, 100);
@@ -81,6 +81,25 @@ assert.deepEqual([s.products[1].locked, s.products[1].sold, s.products[1].left],
 g.stats[0].value = 1; g.units[0].makes = 'Reserva';
 s = sales(g, 30);
 assert.deepEqual([!!s.products[1].locked, s.products[1].made, s.products[1].sold], [false, 20, 24]);
+// books: retain% stays in the fund, rest by shares; losses hit the fund and report the shortfall
+const b = { shares: { a: 50, b: 50 }, bal: {}, fund: 10, retain: 40, units: [{ name: 'W', count: 8, upkeep: 2 }], staff: [{ name: 'S', hired: true, wage: 5 }], stats: [{ name: 'Moral', value: 50 }], unpaidFx: 'Moral-10' };
+assert.equal(book(b, 100), 0);
+assert.deepEqual([b.fund, b.bal.a, b.bal.b], [50, 30, 30]);
+assert.equal(book(b, -30), 0);
+assert.equal(b.fund, 20);
+assert.equal(book(b, -45), 25);
+assert.deepEqual([b.fund, b.bal.a], [0, 30]); // owners are not charged
+assert.deepEqual(unpaid(b), ['W −2']);
+assert.deepEqual([b.units[0].count, b.staff[0].hired, b.stats[0].value, b.strikes], [6, true, 40, 1]);
+assert.deepEqual(unpaid(b), ['W −2', 'S']); // second unpaid period: managers quit
+assert.deepEqual([b.units[0].count, b.staff[0].hired, b.strikes], [4, false, 2]);
+const empty = { units: [{ name: 'V', count: 0, upkeep: 1 }], staff: [], stats: [{ name: 'Moral', value: 5 }], unpaidFx: 'Moral-1' };
+assert.equal(unpaid(empty), null); // bare land with nobody on payroll: no consequences
+assert.deepEqual([empty.stats[0].value, empty.strikes], [5, undefined]);
+const tix = sales({ stats: [], units: [{ name: 'A', count: 1, upkeep: 0, income: 0, prod: '100' }], products: [{ name: 'T', base: 1, price: 1, demand: '0', stock: 0, spoil: 100 }], contracts: [] }, 7);
+assert.equal(tix.products[0].left, 0); // 100% spoil: unsold seats are gone each period
+const lg = { stats: [{ name: 'Fe', value: 10, perPoint: 0.5 }], units: [{ name: 'W', count: 4, upkeep: 1, income: 2, cap: '3' }], staff: [{ hired: true, wage: 3 }], upgrades: [{ done: true, bonus: 5 }, { done: false, bonus: 99 }] };
+assert.deepEqual(ledger(lg, 7, 2, 20), { gross: 7 + 5 + 6 + 20 + 5, costs: 2 + 4 + 3, net: 34 });
 const ex = exportable({ ...v, name: 'V', upgrades: [], events: [] });
 assert.equal('hired' in ex.staff[0], false);
 assert.equal('stock' in ex.products[0], false);

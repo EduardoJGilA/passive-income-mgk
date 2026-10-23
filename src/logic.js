@@ -67,7 +67,7 @@ export function sales(h, days = 30, mult = 1) {
   for (const p of out) {
     p.fair = fair(h, p); p.want = p.locked ? 0 : r2(demand(h, p) * f * mult);
     p.sold = r2(Math.min(p.avail, p.want)); p.revenue = r2(p.sold * (+p.price || p.fair)); p.left = r2(p.avail - p.sold);
-    p.spoiled = r2(p.left * Math.min(1, (+p.spoil || 0) / 100 * f)); p.left = r2(p.left - p.spoiled);
+    p.spoiled = r2(p.left * (+p.spoil >= 100 ? 1 : Math.min(1, (+p.spoil || 0) / 100 * f))); p.left = r2(p.left - p.spoiled); // spoil 100 = nothing carries over
   }
   return { products: out, rows, total: r2(sum(rows, r => r.revenue) + sum(out, p => p.revenue)) };
 }
@@ -141,6 +141,39 @@ export function credit(h, n) {
   h.fund = Math.max(0, r2(h.fund + n * Math.max(rest, 0) / 100));
 }
 
+// money through a holding: losses come out of the fund (returns the unpaid shortfall);
+// profits keep `retain`% in the fund and split the rest by shares (unassigned % also stays in the fund)
+export function book(h, n) {
+  n = r2(n);
+  if (n < 0) {
+    const short = r2(Math.max(0, -n - h.fund));
+    h.fund = r2(Math.max(0, h.fund + n));
+    return short;
+  }
+  const keep = r2(n * Math.min(100, Math.max(0, +h.retain || 0)) / 100);
+  h.fund = r2(h.fund + keep);
+  credit(h, r2(n - keep));
+  return 0;
+}
+// a period's pay could not be met: a quarter of each paid crew walks out, managers quit after two unpaid periods in a row,
+// plus the holding's own consequences (unpaidFx). Returns who left, or null when nobody was on the payroll (no consequences).
+export function unpaid(h) {
+  if (!h.units.some(u => u.upkeep > 0 && u.count > 0) && !(h.staff ?? []).some(s => s.hired && +s.wage > 0)) return null;
+  h.strikes = (+h.strikes || 0) + 1;
+  const gone = [];
+  for (const u of h.units) if (u.upkeep > 0 && u.count > 0) { const n = Math.ceil(u.count / 4); u.count -= n; gone.push(`${u.name} −${n}`); }
+  if (h.strikes >= 2) for (const s of h.staff ?? []) if (s.hired && +s.wage > 0) { s.hired = false; s.left = 0; gone.push(s.name); }
+  effects(h, h.unpaidFx);
+  return gone;
+}
+// one period's books: gross in, costs out (wages of crews and managers, upkeep)
+export function ledger(h, inc, upkeep, saleTotal) {
+  const statInc = sum(h.stats, s => val(h, s.name) * s.perPoint), crew = sum(h.units, u => working(h, u) * u.income);
+  const gross = r2(inc + statInc + crew + saleTotal + sum(h.upgrades.filter(u => u.done), u => +u.bonus || 0));
+  const costs = r2(upkeep + sum(h.units, u => u.count * u.upkeep) + wages(h));
+  return { gross, costs, net: r2(gross - costs) };
+}
+
 // "gp=system.currency.gp:1;sp=system.currency.sp:0.1" -> [{path, ratio}] (ratio vs base unit)
 export const parseCoins = s => String(s || '').split(';').map(x => x.trim()).filter(Boolean).map(x => {
   const [, path, ratio] = x.match(/^(?:[^=]+=)?([^:]+?)(?::(\d*\.?\d+))?$/);
@@ -161,7 +194,7 @@ export function split(n, coins) {
 // reusable template: no balances, owners, log or build progress
 export const exportable = h => ({
   name: h.name, img: h.img, desc: h.desc, kind: h.kind, income: h.income, upkeep: h.upkeep, eventChance: h.eventChance,
-  seasons: h.seasons, value: h.value, stats: h.stats, units: h.units, events: h.events, contracts: h.contracts,
+  seasons: h.seasons, value: h.value, retain: h.retain, unpaidFx: h.unpaidFx, stats: h.stats, units: h.units, events: h.events, contracts: h.contracts,
   products: (h.products ?? []).map(({ stock, ...p }) => p),
   staff: (h.staff ?? []).map(({ id, hired, offered, left, ...s }) => s),
   upgrades: h.upgrades.map(({ id, offered, done, left, ...u }) => u)

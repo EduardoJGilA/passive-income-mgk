@@ -127,4 +127,37 @@ assert.deepEqual([Z().upgrades[0].done, Z().fund], [false, 50]);
 Z().stats[0].value = 3;
 await ops.buy('v1', { uid: 'u9' }, 'P1');
 assert.deepEqual([Z().upgrades[0].done, Z().fund, Z().stats[0].value], [true, 40, 7]);
+// deposit: a character pays into the fund from their purse or owed balance; no overdraft
+store.coins = 'gp=sys.gp:1;sp=sys.sp:0.1'; store.currencyPath = '';
+actorA.sys = { gp: 12, sp: 5 };
+Z().fund = 0; Z().bal = { A: 8 };
+await ops.deposit('v1', { aid: 'A', n: 10, from: 'purse' }, 'P2'); // P2 does not control A
+assert.equal(Z().fund, 0);
+await ops.deposit('v1', { aid: 'A', n: 10.5, from: 'purse' }, 'P1');
+assert.deepEqual([Z().fund, actorA.sys.gp, actorA.sys.sp], [10.5, 2, 0]);
+await ops.deposit('v1', { aid: 'A', n: 50, from: 'purse' }, 'P1'); // can't afford
+assert.equal(Z().fund, 10.5);
+await ops.deposit('v1', { aid: 'A', n: 5, from: 'bal' }, 'P1');
+assert.deepEqual([Z().fund, Z().bal.A], [15.5, 3]);
+await ops.deposit('v1', { aid: 'A', n: 5, from: 'bal' }, 'P1'); // owed only 3
+assert.equal(Z().fund, 15.5);
+// fund-centric week: retain 100 keeps everything; payroll it can't meet makes people leave
+Z().retain = 100; Z().fund = 0; Z().bal = { A: 0 }; Z().strikes = 0; Z().contracts = [];
+Z().units = [{ name: 'Vend', count: 4, upkeep: 3, income: 0, hire: 0, max: 0, cap: '', prod: '0', makes: '' }];
+Z().staff = [{ id: 's2', name: 'Ilsa', role: 'x', stars: 1, wage: 2, fee: 0, train: 0, fx: '', hired: true, offered: false, left: 0 }];
+Z().upgrades = []; Z().unpaidFx = 'Viñas-1';
+await ops.tick();
+assert.deepEqual([Z().fund, Z().units[0].count, Z().staff[0].hired, Z().strikes, Z().stats[0].value], [0, 3, true, 1, 6]);
+await ops.tick();
+assert.deepEqual([Z().units[0].count, Z().staff[0].hired, Z().strikes], [2, false, 2]);
+Z().units = []; Z().products[0].stock = 10;
+await ops.tick();
+assert.equal(Z().strikes, 0, 'paid period resets');
+// one-off sale and payout
+await ops.sellNow('v1', { i: 0, qty: 4, price: 3, buyer: 'Mercader' }, 'P1');
+assert.deepEqual([Z().products[0].stock, Z().fund], [6, 12]);
+await ops.sellNow('v1', { i: 0, qty: 99, price: 3 }, 'P1'); // not in stock
+assert.equal(Z().fund, 12);
+await ops.distribute('v1', { n: 10 }, 'P1');
+assert.deepEqual([Z().fund, Z().bal.A], [2, 10]);
 console.log('chat lines', chat.length, 'ok');

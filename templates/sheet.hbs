@@ -53,6 +53,8 @@
             <b>{{h.fund}}</b>
             <small>{{cur}}</small>
           </div>
+          <small class="pim-kpi-sub">{{localize "PIM.WeekBooks" gross=h.week.gross costs=h.week.costs}}</small>
+          {{#if h.strikes}}<small class="pim-unit-idle"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PIM.Strikes" n=h.strikes}}</small>{{/if}}
         </div>
         <div class="pim-kpi pim-kpi-income">
           <div class="pim-kpi-header">
@@ -90,11 +92,12 @@
     {{/if}}
 
     {{#if (eq tab "owners")}}
-      {{#if isGM}}
       <div class="pim-tab-actions">
-        <button type="button" class="pim-btn-subtle" data-action="collectAll" data-id="{{h.id}}"><i class="fa-solid fa-money-bill-wave"></i> {{localize "PIM.CollectAll"}}</button>
+        <button type="button" class="pim-btn-subtle" data-action="deposit" data-id="{{h.id}}"><i class="fa-solid fa-piggy-bank"></i> {{localize "PIM.Deposit"}}</button>
+        <button type="button" class="pim-btn-subtle" data-action="distribute" data-id="{{h.id}}"><i class="fa-solid fa-hand-holding-dollar"></i> {{localize "PIM.Distribute"}}</button>
+        {{#if isGM}}<button type="button" class="pim-btn-subtle" data-action="collectAll" data-id="{{h.id}}"><i class="fa-solid fa-money-bill-wave"></i> {{localize "PIM.CollectAll"}}</button>{{/if}}
       </div>
-      {{/if}}
+
       <div class="pim-cards">
         {{#each h.owners as |o|}}<div class="pim-card pim-owner-card" data-aid="{{o.id}}">
           <img class="pim-card-avatar" src="{{o.img}}" alt="{{o.name}}">
@@ -179,6 +182,7 @@
           <div class="pim-card-act">
             <label class="pim-price"><i class="fa-solid fa-tag"></i><input type="number" step="any" min="0" value="{{p.price}}"></label>
             <button type="button" class="pim-btn-subtle" data-action="setPrice"><i class="fa-solid fa-check"></i></button>
+            <button type="button" class="pim-btn-subtle" data-action="sellNow" data-tooltip="PIM.SellNow" {{#unless p.stock}}disabled{{/unless}}><i class="fa-solid fa-handshake"></i></button>
           </div>
         </div>{{else}}<p class="pim-empty">{{localize "PIM.NoProducts"}}</p>{{/each}}
       </div>

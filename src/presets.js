@@ -171,7 +171,7 @@ export function PRESETS() {
 
   // products (reference price, demand per month, quality expr), named manager candidates (hidden until the GM offers them),
   // unit production and portraits, upgrade requirements. All amounts per 30 days; fx of managers is per star.
-  const I = 'icons/environment/people/', C = 'icons/consumables/', M = 'icons/commodities/';
+  const I = 'icons/environment/people/', C = 'icons/consumables/', M = 'icons/commodities/', ES = 'icons/environment/settlement/';
   const P = (name, unit, base, demand, quality, img, desc, o = {}) => ({ name, unit, base, price: base, demand, quality, img, desc, stock: 0, spoil: 0, cond: '', ...o });
   const St = (name, role, stars, wage, fee, train, fx, img, desc) => ({ name, role, stars, wage, fee, train, fx, img, desc });
   const X = {
@@ -215,6 +215,8 @@ export function PRESETS() {
       ]
     },
     castle: {
+      products: [P(L('Tolls', 'Peajes'), L('wagons', 'carros'), 1.5, '80', `${L('Prestige', 'Prestigio')}*0.01`, ES + 'castle-gatehouse.webp', L('Tolls on the valley road.', 'Peajes del camino del valle.'))],
+      units: [{ prod: '4', img: I + 'infantry-army.webp', desc: L('Garrison that also mans the toll gate.', 'Guarnición que también cobra en la puerta.') }, { img: I + 'commoner.webp' }, { img: I + 'cavalry-heavy.webp' }],
       staff: [
         St(L('Seneschal Varro', 'Senescal Varro'), L('Seneschal', 'Senescal'), 3, 12, 100, 60, `${L('Prestige', 'Prestigio')}+3`, I + 'cleric-grey.webp', L('Runs the household with an iron ledger.', 'Lleva la casa con un libro de cuentas de hierro.')),
         St(L('Ser Maud', 'Ser Maud'), L('Master-at-arms', 'Maestra de armas'), 3, 15, 120, 70, `${Mor}+4;${L('Soldiers', 'Soldados')}+2`, I + 'cavalry-heavy.webp', L('Veteran of three sieges.', 'Veterana de tres asedios.'))
@@ -245,6 +247,8 @@ export function PRESETS() {
       ]
     },
     port: {
+      products: [P(L('Cargo handling', 'Carga y descarga'), L('loads', 'cargas'), 2, `${L('Trade volume', 'Flujo comercial')}*1.5`, '', ES + 'ship.webp', L('Fees for every load moved on the docks.', 'Tarifa por cada carga movida en los muelles.'))],
+      units: [{ prod: '6', img: I + 'commoner.webp', desc: L('Dockworkers moving crates and barrels.', 'Estibadores que mueven cajas y barriles.') }, { img: I + 'spearfighter.webp' }],
       staff: [
         St(L('Harbourmaster Quill', 'Capitana de puerto Quill'), L('Harbourmaster', 'Capitana de puerto'), 3, 10, 80, 40, `${L('Naval safety', 'Seguridad marítima')}+5`, I + 'cavalry.webp', L('Knows every reef and every smuggler.', 'Conoce cada arrecife y cada contrabandista.')),
         St(L('Factor Benedek', 'Factor Benedek'), L('Trade factor', 'Factor comercial'), 2, 6, 40, 30, `${L('Trade volume', 'Flujo comercial')}+8`, I + 'group.webp', L('Brings foreign houses to your docks.', 'Trae casas extranjeras a tus muelles.'))
@@ -259,12 +263,114 @@ export function PRESETS() {
       ]
     }
   };
+  // businesses built on the full model (bare start, crews with job caps, products, manager candidates, upgrade trees)
+  const Q = L('Quality', 'Calidad'), Tools = L('Tools', 'Herramientas'), Fame = L('Renown', 'Fama');
+  const W = (name, upkeep, hire, max, cap, prod, makes, img, desc) => ({ name, count: 0, upkeep, income: 0, hire, max, cap, prod, makes, img, desc });
+  const Bq = (name, cost, time, fx, desc, req = '', img = '') => ({ name, cost, bonus: 0, time, fx, desc, req, img });
+  const biz = (key, icon, img, name, kind, value, desc, stats, units, products, staff, upgrades, events, seasons = '') => ({
+    key, icon, img, name, kind, income: '0', upkeep: '1', eventChance: 25, seasons, value, desc, retain: 100, unpaidFx: `${Fame}-1`, stats, units, products, staff, upgrades, events
+  });
+  list.push(
+    biz('smithy', 'fa-hammer', ES + 'blacksmith.webp', L('Smithy', 'Herrería'), L('Craft', 'Oficio'), 600,
+      L('A cold forge and an anvil. Light it, hire hands, win orders.', 'Una fragua fría y un yunque. Enciéndela, contrata manos y consigue encargos.'),
+      [S(L('Forges', 'Fraguas'), 1, 0, 4), S(Tools, 2, 0, 10), S(Q, 0, 0, 5), S(Fame, 1, 0, 10)],
+      [W(L('Smiths', 'Herreros'), 2, 8, 12, `${L('Forges', 'Fraguas')}*2`, `${Tools}*5`, L('Tools & nails', 'Herramientas y clavos'), I + 'infantry-armored.webp', L('Hammer, bellows and sweat.', 'Martillo, fuelle y sudor.'))],
+      [P(L('Tools & nails', 'Herramientas y clavos'), L('pieces', 'piezas'), 1, `${Fame}*20`, `${Q}`, 'icons/tools/smithing/anvil.webp', L('Everyday ironwork for farms and carts.', 'Herraje diario para granjas y carros.')),
+       P(L('Weapons', 'Armas'), L('blades', 'hojas'), 12, `${Fame}*1.5`, `${Q}`, 'icons/weapons/swords/shortsword-broad-blue.webp', L('Swords and spearheads. Needs a weaponsmith forge.', 'Espadas y puntas de lanza. Requiere fragua de armero.'), { cond: `${Q}>=2` })],
+      [St(L('Old Bran', 'El viejo Bran'), L('Master smith', 'Maestro herrero'), 3, 5, 30, 25, `${Q}+0.5`, I + 'infantry-armored.webp', L('Forty years at the anvil; burnt hands, perfect edges.', 'Cuarenta años al yunque; manos quemadas, filos perfectos.')),
+       St(L('Ida Coal', 'Ida Carbón'), L('Apprentice', 'Aprendiz'), 1, 1, 3, 10, `${Tools}+1`, I + 'commoner.webp', L('Eager, quick, breaks things.', 'Entusiasta, rápida, rompe cosas.'))],
+      [Bq(L('Second forge', 'Segunda fragua'), 60, 2, `${L('Forges', 'Fraguas')}+1`, L('Room for two more smiths.', 'Espacio para dos herreros más.'), '', ES + 'blacksmith.webp'),
+       Bq(L('Good steel tools', 'Herramientas de buen acero'), 40, 1, `${Tools}+2`, L('Each smith turns out more.', 'Cada herrero produce más.'), '', 'icons/tools/smithing/anvil.webp'),
+       Bq(L('Weaponsmith forge', 'Fragua de armero'), 120, 3, `${Q}+2`, L('Hotter fire, finer steel: unlocks weapons.', 'Fuego más vivo, acero más fino: desbloquea armas.'), `${L('Forges', 'Fraguas')}>=2`, 'icons/tools/smithing/crucible.webp'),
+       Bq(L('Sign over the door', 'Letrero sobre la puerta'), 15, 1, `${Fame}+1`, L('People find you.', 'La gente te encuentra.'))],
+      [E('good', L('Militia order', 'Encargo de la milicia'), L('The watch needs spearheads by next week.', 'La guardia necesita puntas de lanza para la semana que viene.'), '4d6', '0', { cond: `${Q}>=1`, fx: `${Fame}+1`, deadline: 2 }),
+       E('bad', L('Cracked anvil', 'Yunque rajado'), L('The anvil splits under a heavy blow.', 'El yunque se raja con un golpe fuerte.'), '-2d6', '-4d6', { missedFx: `${Tools}-1` })]),
+    biz('farm', 'fa-wheat-awn', ES + 'house-farmland.webp', L('Farmstead', 'Granja'), L('Agriculture', 'Agricultura'), 400,
+      L('Fallow fields, an empty barn and a well. Everything to plant.', 'Campos en barbecho, un granero vacío y un pozo. Todo por sembrar.'),
+      [S(L('Fields', 'Campos'), 0, 0, 20), S(L('Livestock', 'Ganado'), 0, 0, 30), S(L('Fertility', 'Fertilidad'), 10, 0, 20), S(Fame, 1, 0, 10)],
+      [W(L('Farmhands', 'Peones'), 1, 3, 30, `${L('Fields', 'Campos')}*2`, L('Fertility', 'Fertilidad'), L('Grain', 'Grano'), I + 'commoner.webp', L('Plough, sow, reap.', 'Arar, sembrar, cosechar.')),
+       W(L('Herders', 'Pastores'), 1, 3, 10, `${L('Livestock', 'Ganado')}*0.3`, '8', L('Cheese & meat', 'Queso y carne'), I + 'commoner.webp', L('Mind the herd.', 'Cuidan el rebaño.'))],
+      [P(L('Grain', 'Grano'), L('sacks', 'sacos'), 0.5, `${Fame}*60`, '', C + 'grains/bread-loaf-boule-rustic-brown.webp', L('Wheat and barley.', 'Trigo y cebada.'), { spoil: 4 }),
+       P(L('Cheese & meat', 'Queso y carne'), L('lots', 'lotes'), 2, `${Fame}*10`, '', C + 'meat/round-steak-fat-brown.webp', L('From the herd. Spoils fast.', 'Del rebaño. Se echa a perder rápido.'), { spoil: 40, cond: `${L('Livestock', 'Ganado')}>=5` })],
+      [St(L('Widow Hesk', 'Viuda Hesk'), L('Steward', 'Mayordoma'), 2, 2, 8, 12, `${L('Fertility', 'Fertilidad')}+1`, I + 'commoner.webp', L('Knows every field by smell.', 'Conoce cada campo por el olor.'))],
+      [Bq(L('Clear the fields', 'Desbrozar los campos'), 20, 2, `${L('Fields', 'Campos')}+4`, L('Work for 8 hands.', 'Trabajo para 8 peones.'), '', ES + 'house-farmland-small.webp'),
+       Bq(L('Buy a small herd', 'Comprar un rebaño'), 50, 1, `${L('Livestock', 'Ganado')}+10`, L('Sheep and a few cows.', 'Ovejas y unas vacas.'), '', 'icons/creatures/mammals/livestock-sheep-green.webp'),
+       Bq(L('Irrigation ditches', 'Acequias'), 60, 3, `${L('Fertility', 'Fertilidad')}+4`, L('More grain per hand.', 'Más grano por peón.'), `${L('Fields', 'Campos')}>=4`),
+       Bq(L('Silo & windmill', 'Silo y molino'), 90, 3, `${L('Fields', 'Campos')}+6;${Fame}+1`, L('Store and grind more.', 'Almacenar y moler más.'), `${L('Fields', 'Campos')}>=4`, ES + 'farm-silo-windmill.webp')],
+      [E('bad', L('Drought', 'Sequía'), L('No rain for weeks.', 'Semanas sin lluvia.'), '0', '-2d6', { missedFx: `${L('Fertility', 'Fertilidad')}-2` }),
+       E('good', L('Bumper harvest', 'Cosecha abundante'), L('The fields overflow.', 'Los campos rebosan.'), '3d6', '0', { cond: `${L('Fields', 'Campos')}>=4` })],
+      L('Summer:1.3;Fall:1.6;Winter:0.2;2:1.3;3:1.6;4:0.2', 'Verano:1.3;Otoño:1.6;Invierno:0.2;2:1.3;3:1.6;4:0.2')),
+    biz('sawmill', 'fa-tree', ES + 'sawmill-shed-red.webp', L('Sawmill', 'Aserradero'), L('Industry', 'Industria'), 500,
+      L('A river wheel and a rusted saw. The forest is right there.', 'Una rueda en el río y una sierra oxidada. El bosque está al lado.'),
+      [S(L('Saws', 'Sierras'), 1, 0, 6), S(L('Felling rights', 'Derechos de tala'), 2, 0, 10), S(Tools, 6, 0, 16), S(Fame, 1, 0, 10)],
+      [W(L('Lumberjacks', 'Leñadores'), 1, 4, 20, `${L('Felling rights', 'Derechos de tala')}*2`, `${Tools}*3`, L('Planks', 'Tablones'), I + 'commoner.webp', L('Fell and haul.', 'Talan y acarrean.'))],
+      [P(L('Planks', 'Tablones'), L('planks', 'tablones'), 0.6, `${Fame}*40`, '', 'icons/commodities/wood/log-cut-ash-brown.webp', L('Sawn timber for builders.', 'Madera aserrada para constructores.'))],
+      [St(L('Gunnar Ash', 'Gunnar Fresno'), L('Woodward', 'Guardabosques'), 2, 3, 12, 15, `${L('Felling rights', 'Derechos de tala')}+1`, I + 'archer.webp', L('Knows which trees the druids allow.', 'Sabe qué árboles permiten los druidas.'))],
+      [Bq(L('New saw blade', 'Hoja de sierra nueva'), 30, 1, `${Tools}+2`, '', '', 'icons/tools/smithing/anvil.webp'),
+       Bq(L('Felling licence', 'Licencia de tala'), 50, 2, `${L('Felling rights', 'Derechos de tala')}+3`, L('Negotiated with whoever owns the woods.', 'Negociada con quien sea dueño del bosque.')),
+       Bq(L('Second wheel', 'Segunda rueda'), 80, 3, `${L('Saws', 'Sierras')}+1;${Tools}+2`, '', `${L('Felling rights', 'Derechos de tala')}>=4`, ES + 'lumbermill.webp')],
+      [E('bad', L('Flooded river', 'Crecida del río'), L('The wheel jams.', 'La rueda se atasca.'), '-1d6', '-3d6', { missedFx: `${Tools}-1` })]),
+    biz('fishery', 'fa-fish', ES + 'abandoned-pier.webp', L('Fishery', 'Pesquería'), L('Maritime', 'Marítimo'), 450,
+      L('A rotting pier and a beached boat.', 'Un muelle podrido y una barca varada.'),
+      [S(L('Boats', 'Barcas'), 0, 0, 8), S(L('Nets', 'Redes'), 5, 0, 15), S(Fame, 1, 0, 10)],
+      [W(L('Fishers', 'Pescadores'), 1, 3, 24, `${L('Boats', 'Barcas')}*3`, L('Nets', 'Redes'), L('Fish', 'Pescado'), I + 'commoner.webp', L('Out before dawn.', 'Salen antes del alba.'))],
+      [P(L('Fish', 'Pescado'), L('baskets', 'cestas'), 0.8, `${Fame}*40`, '', C + 'meat/fillet-fish-pink-silver-gray.webp', L('Fresh catch. Rots in days.', 'Pesca fresca. Se pudre en días.'), { spoil: 70 }),
+       P(L('Salted fish', 'Pescado salado'), L('barrels', 'barriles'), 3, `${Fame}*6`, '', 'icons/containers/barrels/barrel-oak-tan.webp', L('Keeps all winter.', 'Aguanta todo el invierno.'), { spoil: 2, cond: `${Fame}>=3` })],
+      [St(L('Captain Marr', 'Patrón Marr'), L('Skipper', 'Patrón'), 2, 3, 10, 15, `${L('Nets', 'Redes')}+1`, I + 'cavalry.webp', L('Reads the weather in the gulls.', 'Lee el tiempo en las gaviotas.'))],
+      [Bq(L('Repair the boat', 'Reparar la barca'), 20, 1, `${L('Boats', 'Barcas')}+1`, '', '', ES + 'abandoned-pier.webp'),
+       Bq(L('New nets', 'Redes nuevas'), 25, 1, `${L('Nets', 'Redes')}+2`),
+       Bq(L('Salting shed', 'Saladero'), 60, 2, `${Fame}+2`, L('Lets you sell salted fish far away.', 'Permite vender pescado salado lejos.'), `${L('Boats', 'Barcas')}>=2`)],
+      [E('bad', L('Storm', 'Temporal'), L('Nobody goes out.', 'Nadie sale a faenar.'), '0', '-2d6', { missedFx: `${L('Boats', 'Barcas')}-1` })],
+      L('Winter:0.4;4:0.4', 'Invierno:0.4;4:0.4')),
+    biz('apothecary', 'fa-flask', ES + 'pottery-shop-shed-red.webp', L('Apothecary', 'Botica'), L('Craft', 'Oficio'), 700,
+      L('Dusty shelves, a cracked alembic.', 'Estantes polvorientos, un alambique rajado.'),
+      [S(L('Benches', 'Mesas de trabajo'), 1, 0, 4), S(L('Herbs', 'Hierbas'), 3, 0, 10), S(Q, 0, 0, 5), S(Fame, 1, 0, 10)],
+      [W(L('Assistants', 'Ayudantes'), 2, 6, 8, `${L('Benches', 'Mesas de trabajo')}*2`, L('Herbs', 'Hierbas'), L('Remedies', 'Remedios'), I + 'cleric-grey.webp', L('Grind, steep, bottle.', 'Muelen, maceran, embotellan.'))],
+      [P(L('Remedies', 'Remedios'), L('jars', 'frascos'), 1.5, `${Fame}*12`, Q, C + 'potions/bottle-corked-red.webp', L('Salves and tonics.', 'Ungüentos y tónicos.'), { spoil: 5 }),
+       P(L('Healing potions', 'Pociones de curación'), L('vials', 'viales'), 50, `${Fame}*0.5`, Q, C + 'potions/bottle-bulb-corked-glowing-red.webp', L('Real magic. Needs a proper lab.', 'Magia de verdad. Requiere laboratorio.'), { cond: `${Q}>=3` })],
+      [St(L('Sister Lume', 'Hermana Lume'), L('Herbalist', 'Herbolaria'), 3, 5, 30, 25, `${Q}+0.5;${L('Herbs', 'Hierbas')}+1`, I + 'cleric-orange.webp', L('Druid-trained; sells only what heals.', 'Formada por druidas; solo vende lo que cura.'))],
+      [Bq(L('New alembic', 'Alambique nuevo'), 40, 1, `${Q}+1`, '', '', 'icons/tools/laboratory/alembic-glass-ball-blue.webp'),
+       Bq(L('Herb garden', 'Huerto de hierbas'), 50, 2, `${L('Herbs', 'Hierbas')}+3`),
+       Bq(L('Alchemical lab', 'Laboratorio alquímico'), 150, 4, `${Q}+2;${L('Benches', 'Mesas de trabajo')}+1`, L('Unlocks potions.', 'Desbloquea pociones.'), `${Q}>=1`)],
+      [E('bad', L('Bad batch', 'Lote malo'), L('A tonic made someone sick.', 'Un tónico enfermó a alguien.'), '-1d6', '0', { missedFx: `${Fame}-2` })]),
+    biz('caravan', 'fa-horse', ES + 'wagon.webp', L('Trade Caravan', 'Caravana comercial'), L('Commerce', 'Comercio'), 800,
+      L('One wagon, one tired horse, many roads.', 'Un carro, un caballo cansado y muchos caminos.'),
+      [S(L('Wagons', 'Carros'), 1, 0, 8), S(L('Routes', 'Rutas'), 1, 0, 6), S(L('Safety', 'Seguridad'), 2, 0, 10), S(Fame, 1, 0, 10)],
+      [W(L('Drovers', 'Carreteros'), 2, 6, 16, `${L('Wagons', 'Carros')}*2`, L('Routes', 'Rutas'), L('Freight', 'Fletes'), I + 'cavalry.webp', L('Drive and load.', 'Conducen y cargan.')),
+       W(L('Outriders', 'Escoltas'), 3, 12, 8, '', '', '', I + 'archer.webp', L('Keep bandits away.', 'Mantienen lejos a los bandidos.'))],
+      [P(L('Freight', 'Fletes'), L('runs', 'viajes'), 15, `${L('Routes', 'Rutas')}*3`, `${L('Safety', 'Seguridad')}*0.1`, ES + 'wagon-black.webp', L("Paid to carry other people's goods.", 'Te pagan por llevar mercancía ajena.'))],
+      [St(L('Yara Dust', 'Yara Polvo'), L('Caravan master', 'Jefa de caravana'), 3, 6, 40, 30, `${L('Routes', 'Rutas')}+0.5;${L('Safety', 'Seguridad')}+1`, I + 'cavalry.webp', L('Has crossed every border twice.', 'Ha cruzado cada frontera dos veces.'))],
+      [Bq(L('Another wagon', 'Otro carro'), 50, 1, `${L('Wagons', 'Carros')}+1`, '', '', ES + 'wagon.webp'),
+       Bq(L('New route charter', 'Carta de ruta nueva'), 70, 2, `${L('Routes', 'Rutas')}+1`, L('Permission to trade in another town.', 'Permiso para comerciar en otro pueblo.')),
+       Bq(L('Waystation', 'Posta en el camino'), 120, 3, `${L('Safety', 'Seguridad')}+3;${Fame}+1`, '', `${L('Routes', 'Rutas')}>=2`)],
+      [E('bad', L('Ambush', 'Emboscada'), L('Bandits block the road.', 'Bandidos cortan el camino.'), '-2d6', '-5d6', { cond: `${L('Outriders', 'Escoltas')}<2`, missedFx: `${L('Wagons', 'Carros')}-1` })]),
+    biz('stables', 'fa-horse-head', ES + 'stables-horses.webp', L('Stables', 'Establos'), L('Services', 'Servicios'), 500,
+      L('Empty stalls and a dry trough.', 'Cuadras vacías y un abrevadero seco.'),
+      [S(L('Stalls', 'Cuadras'), 2, 0, 20), S(L('Bloodline', 'Linaje'), 0, 0, 5), S(Fame, 1, 0, 10)],
+      [W(L('Grooms', 'Mozos de cuadra'), 1, 3, 10, `${L('Stalls', 'Cuadras')}*0.5`, '20', L('Stabling', 'Hospedaje de caballos'), I + 'commoner.webp', L('Feed, brush, muck out.', 'Alimentan, cepillan, limpian.'))],
+      [P(L('Stabling', 'Hospedaje de caballos'), L('horse-nights', 'noches-caballo'), 0.2, `${Fame}*60`, '', ES + 'stable.webp', L('Travellers pay to rest their mounts.', 'Los viajeros pagan por el descanso de sus monturas.'), { spoil: 100 }),
+       P(L('Horses', 'Caballos'), L('horses', 'caballos'), 75, `${Fame}*0.3`, L('Bloodline', 'Linaje'), ES + 'stables-logo.webp', L('Bred and broken. Needs a breeding pair.', 'Criados y domados. Requiere una pareja de cría.'), { cond: `${L('Bloodline', 'Linaje')}>=1` })],
+      [St(L('Old Pim', 'El viejo Pim'), L('Horse master', 'Maestro de caballos'), 2, 3, 15, 20, `${L('Bloodline', 'Linaje')}+0.5`, I + 'cavalry.webp', L('Talks to horses. They listen.', 'Les habla a los caballos. Le escuchan.'))],
+      [Bq(L('More stalls', 'Más cuadras'), 40, 2, `${L('Stalls', 'Cuadras')}+4`, '', '', ES + 'stable.webp'),
+       Bq(L('Breeding pair', 'Pareja de cría'), 150, 1, `${L('Bloodline', 'Linaje')}+1`, L('Unlocks horse sales.', 'Desbloquea la venta de caballos.'), `${L('Stalls', 'Cuadras')}>=4`),
+       Bq(L('Sign on the road', 'Cartel en el camino'), 15, 1, `${Fame}+1`)],
+      [E('bad', L('Horse sickness', 'Enfermedad equina'), L('A cough spreads through the stalls.', 'Una tos se extiende por las cuadras.'), '-1d6', '-3d6', { missedFx: `${L('Bloodline', 'Linaje')}-1` })]),
+    biz('theater', 'fa-masks-theater', ES + 'columned-forum.webp', L('Playhouse', 'Teatro'), L('Entertainment', 'Espectáculos'), 900,
+      L('A bare stage and creaking benches.', 'Un escenario desnudo y bancos que crujen.'),
+      [S(L('Seats', 'Asientos'), 40, 0, 300), S(L('Repertoire', 'Repertorio'), 1, 0, 10), S(Fame, 1, 0, 10)],
+      [W(L('Players', 'Actores'), 3, 10, 12, `${L('Repertoire', 'Repertorio')}*2`, `${L('Seats', 'Asientos')}*0.5`, L('Tickets', 'Entradas'), I + 'group.webp', L('Every night a different face.', 'Cada noche una cara distinta.'))],
+      [P(L('Tickets', 'Entradas'), L('tickets', 'entradas'), 0.5, `${Fame}*50`, L('Repertoire', 'Repertorio'), 'icons/sundries/misc/admission-ticket-white.webp', L('An unsold seat is lost.', 'Un asiento sin vender se pierde.'), { spoil: 100 })],
+      [St(L('Lysandre', 'Lysandre'), L('Playwright', 'Dramaturgo'), 3, 6, 40, 30, `${L('Repertoire', 'Repertorio')}+1`, I + 'cleric-orange.webp', L('Writes scandal; sells out.', 'Escribe escándalos; llena la sala.'))],
+      [Bq(L('Gallery', 'Galería'), 80, 2, `${L('Seats', 'Asientos')}+60`, '', '', ES + 'columned-forum.webp'),
+       Bq(L('Costumes & sets', 'Vestuario y decorados'), 50, 2, `${L('Repertoire', 'Repertorio')}+1;${Fame}+1`)],
+      [E('good', L('A noble attends', 'Asiste un noble'), L('Everyone wants a seat now.', 'Ahora todos quieren un asiento.'), '2d6', '0', { fx: `${Fame}+1` })])
+  );
   return list.map(p => {
     const x = X[p.key] ?? {};
     return {
-      ...p, products: x.products ?? [], staff: x.staff ?? [], contracts: [],
+      retain: 100, unpaidFx: '', ...p, products: p.products ?? x.products ?? [], staff: p.staff ?? x.staff ?? [], contracts: [],
       units: p.units.map((u, i) => ({ cap: '', prod: '', makes: '', img: '', desc: '', ...u, ...(x.units?.[i] ?? {}) })),
-      upgrades: p.upgrades.map((u, i) => ({ req: '', img: '', ...u, req: x.req?.[i] ?? '' }))
+      upgrades: p.upgrades.map((u, i) => ({ req: '', img: '', ...u, req: u.req || x.req?.[i] || '' }))
     };
   });
 }

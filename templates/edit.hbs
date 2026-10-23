@@ -52,11 +52,22 @@
         </div>
       </div>
     </div>
+    <div class="pim-grid-2">
+      <div class="form-group">
+        <label><i class="fa-solid fa-piggy-bank"></i> {{localize "PIM.Retain"}}</label>
+        <div class="form-fields"><input type="number" name="retain" min="0" max="100" value="{{h.retain}}" placeholder="100"></div>
+      </div>
+      <div class="form-group">
+        <label><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PIM.UnpaidFx"}}</label>
+        <div class="form-fields"><input type="text" name="unpaidFx" value="{{h.unpaidFx}}" placeholder="Morale-10;Reputation-1"></div>
+      </div>
+    </div>
     <div class="pim-hint-card">
       <i class="fa-solid fa-circle-info"></i>
       <div>
         <p>{{localize "PIM.IncomeHint"}}</p>
         <p>{{localize "PIM.SeasonsHint"}}</p>
+        <p>{{localize "PIM.RetainHint"}}</p>
       </div>
     </div>
   </div>
