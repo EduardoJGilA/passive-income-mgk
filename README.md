@@ -12,10 +12,16 @@ System-agnostic holdings for Foundry VTT v14: vineyards, quarries, taverns, vill
 - **Simple Calendar** (optional): every elapsed period (days, configurable) collects income and rolls events automatically. Otherwise use "Advance period" or `game.modules.get("passive-income-mgk").api.tick()`.
 - **Currency** is a label plus an actor path (e.g. `system.currency.gp`), or several denominations (`gp=system.currency.gp:1;sp=system.currency.sp:0.1`) paid out largest first. Works with any system.
 
-## Production and contracts
-- **Job cap** per unit: empty = unlimited, a number (`12`), a stat/unit name (`Vines`) or name times factor (`Vines*2`). Workers above the cap still cost upkeep but earn and produce nothing, so overstaffing lowers profit.
-- **Prod**: product units per month per working unit (e.g. 10 bottles). Set the product name and the market price for surplus in Edit → Economy.
-- **Contracts** (Edit → Economy): buyer, quantity per month, price each, months (0 = no end). Filled in order from production each period (prorated by period length); shortfalls and expiries are announced in chat. The Trade tab shows everything per month.
+## Production, products and contracts
+Generic for any holding (vineyard, quarry, mine, tavern...). Numeric fields marked *expr* take a number, a stat/unit name, or `name*factor` (e.g. `Tools*5`), so upgrades and events that change stats change the economy.
+- **Units**: *job cap* (expr, empty = unlimited) — workers above it are paid but earn and produce nothing; *prod/month* (expr) of the product in *makes* (empty = first product).
+- **Products** (Edit → Economy): reference price (GM), price (owners change it on the sheet), *quality* (expr, +20% fair price per point), *demand* (expr, units/month the open market buys at fair price, scaled by (fair/price)²), stock. Owners can launch new products from the Trade tab; the market ignores them until the GM sets a reference price.
+- **Contracts** (Edit → Economy): deals won in roleplay — buyer, product, qty/month, agreed price, months (0 = no end). Filled before the market; shortfalls and expiries go to chat.
+- **Managers** (Edit → Management → Managers; Managers tab on the sheet): named people with 1-5 stars, wage per period, signing fee, training cost per star and effects *per star* (e.g. `Quality+0.5`) applied while employed — every place a stat is read sees them. The GM reveals candidates with Offer when they turn up in play; owners hire, dismiss and train them (+1 star after as many periods as current stars, wage rises in proportion).
+- **Images & descriptions** on units, managers, products, contracts and upgrades so players can manage them from the sheet.
+- **Requirements**: upgrades (`req`) can only be bought and products (`cond`) are only made/sold when their condition holds (e.g. `Vines>=3`) — build upgrade trees and unlockable products. **Spoilage**: % of a product's stock lost per month.
+- **Templates**: 10 built-ins (with products and manager candidates); the GM can save any holding as a world template (bookmark button) and reuse or delete it from the template picker.
+- Production and demand are per 30 days, prorated to the period and multiplied by the season. Unsold goods stay in stock (no spoilage).
 
 ## Effects, conditions
 - Effects: `Morale+5;Guards-2` (stat or unit names, clamped between 0 and max).

@@ -82,15 +82,49 @@ await ops.transfer('h1', { from: 'B', to: 'A', pct: 10 }, 'P1'); // P1 does not 
 assert.equal(H().shares.B, 50);
 await ops.sell('h1');
 assert.equal(store.holdings.length, 0);
-// trade: 30-day period, contract ends after 1 month and short delivery is announced
+// trade: 30-day period, contract ends after 1 month and short delivery is announced; owners set price / add product
 store.periodDays = 30;
-store.holdings = [{ id: 'v1', name: 'Viñedo', income: '0', upkeep: '0', eventChance: 0, shares: { A: 100 }, good: 'botellas', spot: 0,
-  stats: [{ name: 'Viñas', value: 1, perPoint: 0, max: 0 }], units: [{ name: 'Vend', count: 3, upkeep: 1, income: 0, hire: 0, max: 0, cap: 'Viñas*2', prod: 10 }],
-  contracts: [{ buyer: 'Druida', qty: 30, price: 2, months: 1 }], events: [], upgrades: [] }];
+store.holdings = [{ id: 'v1', name: 'Viñedo', income: '0', upkeep: '0', eventChance: 0, shares: { A: 100 },
+  stats: [{ name: 'Viñas', value: 1, perPoint: 0, max: 0 }], units: [{ name: 'Vend', count: 3, upkeep: 1, income: 0, hire: 0, max: 0, cap: 'Viñas*2', prod: '10', makes: '' }],
+  products: [{ name: 'Vino', unit: 'botellas', base: 2, price: 2, quality: '', demand: '0', stock: 0 }],
+  contracts: [{ buyer: 'Druida', product: 'Vino', qty: 30, price: 2, months: 1 }], events: [], upgrades: [] }];
 const chatBefore = chat.length;
+await ops.setPrice('v1', { i: 0, price: 9 }, 'P2'); // P2 owns nothing here -> ignored
+assert.equal(store.holdings[0].products[0].price, 2);
 await ops.tick();
 const V = store.holdings[0];
-assert.equal(V.bal.A, 20 * 2 - 3 * 1, 'income = 20 bottles sold - upkeep of 3 workers');
+assert.equal(V.bal.A, 20 * 2 - 3 * 1, 'income = 20 bottles to the contract - upkeep of 3 workers');
+assert.equal(V.products[0].stock, 0);
 assert.equal(V.contracts.length, 0, 'contract expired');
 assert.ok(chat.slice(chatBefore).some(m => m.includes('ContractShort')) && chat.slice(chatBefore).some(m => m.includes('ContractEnded')));
+await ops.setPrice('v1', { i: 0, price: 3 }, 'P1');
+await ops.addProduct('v1', { name: 'Mosto' }, 'P1');
+await ops.addProduct('v1', { name: 'mosto' }, 'P1'); // duplicate ignored
+assert.deepEqual([store.holdings[0].products[0].price, store.holdings[0].products.length], [3, 2]);
+// staff: GM offers, owner hires (fee), wages hit income, training adds a star after N periods
+const Z = () => store.holdings[0];
+Z().fund = 100; Z().bal = {};
+Z().staff = [{ id: 's1', name: 'Ilsa', role: 'Capataz', stars: 1, wage: 2, fee: 10, train: 20, fx: 'Viñas+1', hired: false, offered: false, left: 0 }];
+await ops.hireStaff('v1', { sid: 's1' }, 'P1'); // not offered yet
+assert.equal(Z().staff[0].hired, false);
+await ops.offerStaff('v1', { sid: 's1' });
+await ops.hireStaff('v1', { sid: 's1' }, 'P1');
+assert.deepEqual([Z().staff[0].hired, Z().fund], [true, 90]);
+await ops.trainStaff('v1', { sid: 's1' }, 'P1');
+assert.deepEqual([Z().staff[0].left, Z().fund], [1, 70]);
+await ops.trainStaff('v1', { sid: 's1' }, 'P1'); // already training -> ignored
+assert.equal(Z().fund, 70);
+Z().contracts = []; Z().products[0].demand = '0';
+await ops.tick();
+assert.deepEqual([Z().staff[0].stars, Z().staff[0].wage, Z().staff[0].left], [2, 4, 0]);
+await ops.fireStaff('v1', { sid: 's1' }, 'P1');
+assert.equal(Z().staff[0].hired, false);
+// upgrade requirement blocks buying until met
+Z().upgrades = [{ id: 'u9', name: 'Segunda terraza', cost: 10, bonus: 0, time: 0, fx: 'Viñas+4', req: 'Viñas>=3', offered: true, done: false, left: 0 }];
+Z().fund = 50;
+await ops.buy('v1', { uid: 'u9' }, 'P1');
+assert.deepEqual([Z().upgrades[0].done, Z().fund], [false, 50]);
+Z().stats[0].value = 3;
+await ops.buy('v1', { uid: 'u9' }, 'P1');
+assert.deepEqual([Z().upgrades[0].done, Z().fund, Z().stats[0].value], [true, 40, 7]);
 console.log('chat lines', chat.length, 'ok');

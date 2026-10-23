@@ -1931,3 +1931,12 @@
 
 
 .pim-unit-idle { color: #e0a030; display: block; }
+.pim-price { display: flex; align-items: center; gap: 4px; }
+.pim-price input { width: 70px; }
+.pim-stars { color: #e8b84a; letter-spacing: 1px; white-space: nowrap; }
+.pim-candidate { opacity: 0.85; border-style: dashed; }
+.pim-staff-extra { color: #7fc77f; margin-left: 4px; }
+.pim-card-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex: none; border: 1px solid rgba(255,255,255,.15); }
+.pim-locked { opacity: .6; }
+.pim-tpl-del { margin-left: 6px; color: #c55; cursor: pointer; }
+.pim-tr file-picker { width: 100%; }

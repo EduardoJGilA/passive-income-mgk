@@ -9,7 +9,7 @@ export function PRESETS() {
   const B = (name, cost, bonus, time, fx, desc) => ({ name, cost, bonus, time, fx, desc });
   const Mor = L('Morale', 'Moral'), Rep = L('Reputation', 'Reputación'), Grd = L('Guards', 'Guardias');
 
-  return [
+  const list = [
     {
       key: 'vineyard', img: 'icons/environment/settlement/winemaker-still-vintner.webp', icon: 'fa-wine-bottle', name: L('Veil Terraces Vineyard', 'Viñedo de las Terrazas del Velo'), kind: L('Agriculture', 'Agricultura'), income: '1d6+1', upkeep: '10', eventChance: 35,
       seasons: L('Fall:2.5;Winter:0.3;Stav:2.5;Choref:0.3;3:2.5;4:0.3', 'Otoño:2.5;Invierno:0.3;Stav:2.5;Choref:0.3;3:2.5;4:0.3'), value: 3000, desc: L('Rolling vines, lush hillside terraces, and a modest oak wine press.', 'Hileras de vides, terrazas verdes y una modesta prensa de roble.'),
@@ -168,5 +168,103 @@ export function PRESETS() {
       ]
     }
   ];
-}
 
+  // products (reference price, demand per month, quality expr), named manager candidates (hidden until the GM offers them),
+  // unit production and portraits, upgrade requirements. All amounts per 30 days; fx of managers is per star.
+  const I = 'icons/environment/people/', C = 'icons/consumables/', M = 'icons/commodities/';
+  const P = (name, unit, base, demand, quality, img, desc, o = {}) => ({ name, unit, base, price: base, demand, quality, img, desc, stock: 0, spoil: 0, cond: '', ...o });
+  const St = (name, role, stars, wage, fee, train, fx, img, desc) => ({ name, role, stars, wage, fee, train, fx, img, desc });
+  const X = {
+    vineyard: {
+      products: [
+        P(L('Wine', 'Vino'), L('bottles', 'botellas'), 2, `${Rep}*3`, `${L('Quality', 'Calidad')}*0.04`, C + 'drinks/wine-bottle-glass-white.webp', L('House wine from the terraces.', 'Vino de la casa, de las terrazas.')),
+        P(L('Grand Reserve', 'Gran Reserva'), L('bottles', 'botellas'), 8, `${Rep}*0.5`, `${L('Quality', 'Calidad')}*0.04`, C + 'drinks/wine-amphora-clay-red.webp', L('Long-aged wine for nobles. Needs the stone cellar.', 'Crianza larga para nobles. Requiere la bodega de piedra.'), { cond: `${L('Quality', 'Calidad')}>=70` })
+      ],
+      units: [{ prod: '6', makes: L('Wine', 'Vino'), img: I + 'commoner.webp', desc: L('Seasonal hands for pruning and harvest.', 'Jornaleros para poda y vendimia.') }, { img: I + 'spearfighter.webp' }],
+      staff: [
+        St(L('Brenn Deeproot', 'Brenn Raízhonda'), L('Overseer', 'Capataz'), 1, 1, 3, 12, `${L('Pickers', 'Vendimiadores')}+1`, I + 'commoner.webp', L('Honest day labourer; slow but steady.', 'Jornalero honrado; lento pero constante.')),
+        St('Ondine Lisár', L('Winemaker', 'Enóloga'), 4, 10, 80, 35, `${L('Quality', 'Calidad')}+4`, I + 'cleric-grey.webp', L('Elven master of a legendary reserve. Demanding and expensive.', 'Maestra élfica de una reserva legendaria. Exigente y cara.')),
+        St(L('Pell Silvertongue', 'Pell «Lengua de Plata»'), L('Sales agent', 'Agente comercial'), 2, 3, 12, 15, `${Rep}+2`, I + 'group.webp', L('Knows every tavern keeper and half their debts.', 'Conoce a todos los taberneros y a la mitad de sus deudas.'))
+      ],
+      req: { 1: `${L('Quality', 'Calidad')}>=60` }
+    },
+    tavern: {
+      products: [P(L('Meals & drinks', 'Comidas y bebidas'), L('servings', 'raciones'), 0.3, `${Rep}*4`, `${L('Comfort', 'Comodidad')}*0.03`, C + 'food/bowl-stew-brown.webp', L('Stew, bread and ale for travellers.', 'Guiso, pan y cerveza para viajeros.'), { spoil: 60 })],
+      units: [{ prod: '30', img: I + 'commoner.webp', desc: L('Cooks, maids and servers.', 'Cocineros, criadas y meseros.') }, { img: I + 'infantry.webp' }],
+      staff: [
+        St(L('Marta Cinderpot', 'Marta Ollahumo'), L('Head cook', 'Cocinera mayor'), 2, 3, 10, 15, `${L('Comfort', 'Comodidad')}+5`, I + 'commoner.webp', L('Her stew is talked about two villages away.', 'Su guiso tiene fama a dos aldeas de distancia.')),
+        St(L('Old Gaspard', 'El viejo Gaspard'), L('Innkeeper', 'Posadero'), 3, 5, 25, 20, `${Rep}+3`, I + 'group.webp', L('Remembers every face and every rumour.', 'Recuerda cada cara y cada rumor.')),
+        St('Brutus', L('Head of security', 'Jefe de seguridad'), 1, 2, 5, 10, `${L('Bouncers', 'Gorilas')}+1`, I + 'infantry-armored.webp', L('Few words, big fists.', 'Pocas palabras, puños grandes.'))
+      ]
+    },
+    quarry: {
+      products: [P(L('Ashlar blocks', 'Sillares'), L('blocks', 'bloques'), 3, '60', '', M + 'stone/boulder-grey.webp', L('Dressed stone for walls and towers.', 'Piedra labrada para murallas y torres.'))],
+      units: [{ prod: '8', img: I + 'commoner.webp', desc: L('Cutters, haulers and masons.', 'Cortadores, acarreadores y canteros.') }, { img: I + 'spearfighter.webp' }],
+      staff: [
+        St(L('Master Hilde', 'Maestra Hilde'), L('Master mason', 'Maestra cantera'), 3, 5, 30, 20, `${L('Safety', 'Seguridad')}+5`, I + 'infantry-armored.webp', L('Reads the rock like a book.', 'Lee la roca como un libro.')),
+        St('Dorn', L('Foreman', 'Capataz'), 2, 3, 10, 15, `${L('Miners', 'Canteros')}+2`, I + 'commoner.webp', L('Keeps the gangs moving.', 'Mantiene las cuadrillas en marcha.'))
+      ],
+      req: { 1: `${L('Safety', 'Seguridad')}>=70` }
+    },
+    village: {
+      products: [P(L('Grain', 'Grano'), L('sacks', 'sacos'), 0.5, '200', '', C + 'grains/bread-loaf-boule-rustic-brown.webp', L('Wheat and barley surplus.', 'Excedente de trigo y cebada.'), { spoil: 5 })],
+      units: [{ img: I + 'spearfighter.webp' }, { prod: '2', img: I + 'commoner.webp', desc: L('Families working the fields.', 'Familias que trabajan los campos.') }],
+      staff: [
+        St(L('Reeve Aldous', 'Alguacil Aldous'), L('Reeve', 'Alguacil'), 2, 3, 15, 15, `${L('Defense', 'Defensa')}+5`, I + 'archer.webp', L('Organises the watch.', 'Organiza la ronda.')),
+        St(L('Mother Wenna', 'Madre Wenna'), L('Healer', 'Sanadora'), 2, 2, 10, 15, `${L('Population', 'Población')}+10;${Mor}+3`, I + 'cleric-orange.webp', L('Herbs, births and burials.', 'Hierbas, partos y entierros.'))
+      ]
+    },
+    castle: {
+      staff: [
+        St(L('Seneschal Varro', 'Senescal Varro'), L('Seneschal', 'Senescal'), 3, 12, 100, 60, `${L('Prestige', 'Prestigio')}+3`, I + 'cleric-grey.webp', L('Runs the household with an iron ledger.', 'Lleva la casa con un libro de cuentas de hierro.')),
+        St(L('Ser Maud', 'Ser Maud'), L('Master-at-arms', 'Maestra de armas'), 3, 15, 120, 70, `${Mor}+4;${L('Soldiers', 'Soldados')}+2`, I + 'cavalry-heavy.webp', L('Veteran of three sieges.', 'Veterana de tres asedios.'))
+      ]
+    },
+    mine: {
+      products: [P(L('Silver', 'Plata'), L('ingots', 'lingotes'), 10, '20', '', M + 'metal/ingot-engraved-silver.webp', L('Refined silver bars.', 'Barras de plata refinada.'))],
+      units: [{ prod: '1.5', cap: `${L('Ore reserve', 'Reserva de plata')}*0.2`, img: I + 'commoner.webp', desc: L('Diggers; the reserve limits how many can work.', 'Picadores; la reserva limita cuántos pueden trabajar.') }, { img: I + 'spearfighter.webp' }],
+      staff: [
+        St(L('Engineer Kessa', 'Ingeniera Kessa'), L('Mining engineer', 'Ingeniera de minas'), 3, 8, 60, 30, `${L('Safety', 'Seguridad')}+5`, I + 'infantry-armored.webp', L('Pumps, props and plans.', 'Bombas, puntales y planos.')),
+        St(L('Assayer Ludo', 'Ensayador Ludo'), L('Assayer', 'Ensayador'), 2, 5, 30, 25, `${L('Ore reserve', 'Reserva de plata')}+10`, I + 'cleric-grey.webp', L('Finds veins others miss.', 'Encuentra vetas que otros no ven.'))
+      ]
+    },
+    tower: {
+      products: [
+        P(L('Scrolls', 'Pergaminos'), L('scrolls', 'pergaminos'), 25, '6', `${L('Arcane energy', 'Energía arcana')}*0.02`, 'icons/sundries/scrolls/scroll-bound-blue-brown.webp', L('Common spell scrolls.', 'Pergaminos de conjuros comunes.')),
+        P(L('Potions', 'Pociones'), L('vials', 'viales'), 50, '4', '', C + 'potions/bottle-bulb-corked-labeled-blue.webp', L('Healing draughts. Need a stable laboratory.', 'Pociones curativas. Requieren un laboratorio estable.'), { cond: `${L('Stability', 'Estabilidad')}>=80` })
+      ],
+      units: [{ prod: '1.5', img: I + 'cleric-grey.webp' }, {}],
+      staff: [St(L('Archmage Ysolde', 'Archimaga Ysolde'), L('Visiting archmage', 'Archimaga visitante'), 4, 25, 200, 80, `${L('Arcane energy', 'Energía arcana')}+6`, I + 'cleric-orange.webp', L('Brilliant, distracted, expensive.', 'Brillante, distraída y cara.'))]
+    },
+    thieves: {
+      products: [P(L('Contraband', 'Contrabando'), L('bundles', 'fardos'), 5, '10', '', 'icons/containers/bags/sack-simple-leather-brown.webp', L('Goods nobody asks about.', 'Mercancía sobre la que nadie pregunta.'), { spoil: 15 })],
+      units: [{ prod: '2', img: I + 'archer.webp' }, { img: I + 'group.webp' }],
+      staff: [
+        St(L('Velvet Mirel', 'Mirel «Terciopelo»'), L('Master fence', 'Perista maestra'), 3, 6, 40, 25, `${L('Infiltration', 'Infiltración')}+5`, I + 'group.webp', L('Can sell a crown back to its king.', 'Puede venderle la corona a su propio rey.')),
+        St(L('Captain Orso', 'Capitán Orso'), L('Bought guard captain', 'Capitán comprado'), 2, 8, 50, 30, `${L('Heat', 'Alerta de la guardia')}-5`, I + 'infantry-armored.webp', L('Looks the other way, for a price.', 'Mira hacia otro lado, por un precio.'))
+      ]
+    },
+    port: {
+      staff: [
+        St(L('Harbourmaster Quill', 'Capitana de puerto Quill'), L('Harbourmaster', 'Capitana de puerto'), 3, 10, 80, 40, `${L('Naval safety', 'Seguridad marítima')}+5`, I + 'cavalry.webp', L('Knows every reef and every smuggler.', 'Conoce cada arrecife y cada contrabandista.')),
+        St(L('Factor Benedek', 'Factor Benedek'), L('Trade factor', 'Factor comercial'), 2, 6, 40, 30, `${L('Trade volume', 'Flujo comercial')}+8`, I + 'group.webp', L('Brings foreign houses to your docks.', 'Trae casas extranjeras a tus muelles.'))
+      ]
+    },
+    temple: {
+      products: [P(L('Votive candles', 'Velas votivas'), L('candles', 'velas'), 0.2, `${L('Pilgrims', 'Peregrinos')}*3`, '', 'icons/sundries/lights/candle-lit-yellow.webp', L('Blessed candles for pilgrims.', 'Velas benditas para peregrinos.'))],
+      units: [{ prod: '20', img: I + 'cleric-grey.webp' }, { img: I + 'infantry-armored.webp' }],
+      staff: [
+        St(L('High Priestess Amaris', 'Suma sacerdotisa Amaris'), L('High priestess', 'Suma sacerdotisa'), 3, 8, 60, 40, `${L('Devotion', 'Devoción')}+6`, I + 'cleric-orange.webp', L('Her sermons fill the nave.', 'Sus sermones llenan la nave.')),
+        St(L('Brother Tobin', 'Hermano Tobin'), L('Hospitaller', 'Hospitalario'), 2, 3, 15, 15, `${L('Pilgrims', 'Peregrinos')}+8`, I + 'cleric-grey.webp', L('Tends the sick at the gate.', 'Atiende a los enfermos en la puerta.'))
+      ]
+    }
+  };
+  return list.map(p => {
+    const x = X[p.key] ?? {};
+    return {
+      ...p, products: x.products ?? [], staff: x.staff ?? [], contracts: [],
+      units: p.units.map((u, i) => ({ cap: '', prod: '', makes: '', img: '', desc: '', ...u, ...(x.units?.[i] ?? {}) })),
+      upgrades: p.upgrades.map((u, i) => ({ req: '', img: '', ...u, req: x.req?.[i] ?? '' }))
+    };
+  });
+}

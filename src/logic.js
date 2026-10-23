@@ -7,32 +7,69 @@ const find = (h, n) => {
   return s ? [s, 'value'] : u ? [u, 'count'] : [];
 };
 
-// unit job cap: "" = unlimited, "12", "Vines" or "Vines*2" (stat/unit name times factor)
-export function capOf(h, u) {
-  const [, name, k] = String(u.cap ?? '').trim().match(/^(.+?)\s*(?:\*\s*(\d*\.?\d+))?$/) ?? [];
-  if (!name) return Infinity;
-  if (!isNaN(name)) return +name * (+k || 1);
-  const [o, key] = find(h, name);
-  return o ? o[key] * (+k || 1) : 0;
+// hired staff add fx per star to stats/units while employed: "Calidad+0.5;Prestigio+1" at 3 stars -> +1.5 / +3
+export function staffBonus(h, name) {
+  let b = 0;
+  for (const s of h.staff ?? []) if (s.hired) for (const m of String(s.fx || '').split(';')) {
+    const [, n, k] = m.trim().match(/^(.+?)\s*([+-]\d*\.?\d+)$/) ?? [];
+    if (n && lc(n) === lc(name)) b += +k * (+s.stars || 0);
+  }
+  return r2(b);
 }
-// workers beyond the cap still cost upkeep but produce nothing
-export const working = (h, u) => Math.max(0, Math.min(u.count, capOf(h, u)));
+// effective value of a stat (value) or unit (count): base + staff bonus
+const eff = (h, name) => { const [o, k] = find(h, name); return o ? r2(o[k] + staffBonus(h, name)) : undefined; };
+export const wages = h => r2(sum((h.staff ?? []).filter(s => s.hired), s => +s.wage || 0));
+// one more star; wage grows in proportion (a 2-star on 4 becomes a 3-star on 6)
+export function promote(s) {
+  if (s.stars < 5) { s.wage = r2(s.wage * (s.stars + 1) / (s.stars || 1)); s.stars++; }
+  s.left = 0;
+  return s;
+}
+
+// number, stat/unit name, or name*factor: "12", "Calidad", "Herramientas*5"; empty -> def
+export function val(h, expr, def = 0) {
+  const s = String(expr ?? '').trim();
+  if (!s) return def;
+  if (!isNaN(s)) return +s;
+  const [, name, k] = s.match(/^(.+?)\s*(?:\*\s*(\d*\.?\d+))?$/) ?? [];
+  return (eff(h, name) ?? 0) * (+k || 1);
+}
+// unit job cap ("" = unlimited); workers beyond it still cost upkeep but earn and produce nothing
+export const capOf = (h, u) => val(h, u.cap, Infinity);
+export const working = (h, u) => Math.max(0, Math.min(eff(h, u.name) ?? u.count, capOf(h, u)));
 
 // stats: value * perPoint; units: working * income - count * upkeep
-export const passive = h => r2(sum(h.stats, s => s.value * s.perPoint) + sum(h.units, u => working(h, u) * u.income - u.count * u.upkeep));
+export const passive = h => r2(sum(h.stats, s => eff(h, s.name) * s.perPoint) + sum(h.units, u => working(h, u) * u.income - u.count * u.upkeep));
 
-// goods made by working units (prod per month), sold to contracts in order, leftovers at spot price.
-// days = length of the period; contract qty/prod are per 30 days
-export function sales(h, days = 30) {
-  const f = days / 30, made = r2(sum(h.units, u => working(h, u) * (+u.prod || 0)) * f);
-  let left = made;
-  const rows = (h.contracts ?? []).map(c => {
-    const want = r2((+c.qty || 0) * f), got = r2(Math.min(want, left));
-    left = r2(left - got);
-    return { ...c, want, got, short: r2(want - got), revenue: r2(got * (+c.price || 0)) };
+// each quality point makes the product worth 20% more
+export const fair = (h, p) => r2((+p.base || 0) * (1 + 0.2 * val(h, p.quality, 0)));
+// units per month the open market buys: product `demand` at fair price, scaled by (fair/price)^2 (no reference price -> 0)
+export function demand(h, p) {
+  const f = fair(h, p), price = +p.price || f;
+  return f && price ? r2(Math.max(0, val(h, p.demand, 0)) * (f / price) ** 2) : 0;
+}
+// production and demand (per 30 days, prorated to the period, times season mult): contracts are filled first, the open market buys from the rest.
+// units make the product named in `makes` (empty = first product). Unsold stock carries over, losing `spoil`% per month.
+// A product whose `cond` fails (e.g. "Bodega>=1") is not made or sold: it is locked.
+export function sales(h, days = 30, mult = 1) {
+  const f = days / 30, prods = h.products ?? [];
+  const out = prods.map((p, i) => {
+    if (!check(h, p.cond)) return { ...p, locked: true, made: 0, avail: +p.stock || 0 };
+    const made = r2(sum(h.units.filter(u => (u.makes ? lc(u.makes) === lc(p.name) : i === 0)), u => working(h, u) * val(h, u.prod, 0)) * f * mult);
+    return { ...p, made, avail: r2((+p.stock || 0) + made) };
   });
-  const spot = r2(left * (+h.spot || 0));
-  return { made, rows, spare: left, spot, total: r2(sum(rows, r => r.revenue) + spot) };
+  const by = n => out.find(p => lc(p.name) === lc(n)) ?? (n ? null : out[0]);
+  const rows = (h.contracts ?? []).map(c => {
+    const p = by(c.product), want = r2((+c.qty || 0) * f), got = p ? r2(Math.min(want, p.avail)) : 0;
+    if (p) p.avail = r2(p.avail - got);
+    return { ...c, product: p?.name ?? c.product, want, got, short: r2(want - got), revenue: r2(got * (+c.price || 0)) };
+  });
+  for (const p of out) {
+    p.fair = fair(h, p); p.want = p.locked ? 0 : r2(demand(h, p) * f * mult);
+    p.sold = r2(Math.min(p.avail, p.want)); p.revenue = r2(p.sold * (+p.price || p.fair)); p.left = r2(p.avail - p.sold);
+    p.spoiled = r2(p.left * Math.min(1, (+p.spoil || 0) / 100 * f)); p.left = r2(p.left - p.spoiled);
+  }
+  return { products: out, rows, total: r2(sum(rows, r => r.revenue) + sum(out, p => p.revenue)) };
 }
 // age contracts by elapsed months; returns the ones that just ended (months 0 = no end)
 export function ageContracts(h, days) {
@@ -62,7 +99,7 @@ export function check(h, cond) {
   return String(cond || '').split(';').map(c => c.trim()).filter(Boolean).every(c => {
     const [, name, op, v] = c.match(/^(.+?)\s*(<=|>=|<|>|=)\s*(-?\d+(?:\.\d+)?)$/) ?? [];
     if (!op) return true;
-    const [o, k] = find(h, name), n = /^(fund|fondo)$/i.test(name) ? h.fund : o?.[k];
+    const n = /^(fund|fondo)$/i.test(name) ? h.fund : eff(h, name);
     return n !== undefined && ops[op](n, +v);
   });
 }
@@ -124,6 +161,8 @@ export function split(n, coins) {
 // reusable template: no balances, owners, log or build progress
 export const exportable = h => ({
   name: h.name, img: h.img, desc: h.desc, kind: h.kind, income: h.income, upkeep: h.upkeep, eventChance: h.eventChance,
-  seasons: h.seasons, value: h.value, good: h.good, spot: h.spot, stats: h.stats, units: h.units, events: h.events,
+  seasons: h.seasons, value: h.value, stats: h.stats, units: h.units, events: h.events, contracts: h.contracts,
+  products: (h.products ?? []).map(({ stock, ...p }) => p),
+  staff: (h.staff ?? []).map(({ id, hired, offered, left, ...s }) => s),
   upgrades: h.upgrades.map(({ id, offered, done, left, ...u }) => u)
 });
