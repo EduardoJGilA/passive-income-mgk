@@ -447,9 +447,8 @@ class HoldingSheetApp extends HandlebarsApplicationMixin(ApplicationV2) {
   hid = null;
 
   constructor(options = {}) {
-    super(options);
+    super({ ...options, id: `pim-sheet-${options.hid}` }); // id must be set before super: ApplicationV2 reads it at construction
     this.hid = options.hid;
-    this.options = { ...options, ...this.options, id: `pim-sheet-${options.hid}` };
   }
 
   getHid(target) {
