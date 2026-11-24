@@ -1021,6 +1021,7 @@ Hooks.once('init', () => {
   game.settings.register(ID, 'lastTs', { scope: 'world', config: false, type: Number, default: 0 });
   game.settings.register(ID, 'templates', { scope: 'world', config: false, type: Array, default: [] });
   cfg('auto', Boolean, true);
+  cfg('calendarPlayers', Boolean, true);
   cfg('periodDays', Number, 7);
   cfg('currency', String, 'gp');
   cfg('currencyPath', String, '');
@@ -1046,6 +1047,7 @@ Hooks.once('init', () => {
 
 Hooks.once('ready', () => {
   applyLanguage();
+  if (!game.user.isGM && set('calendarPlayers')) globalThis.SimpleCalendar?.api?.showCalendar(null, true); // compact calendar for players
   game.modules.get(ID).api = { open, openHolding: hid => HoldingSheetApp.open(hid), tick: () => request('tick'),
     deleteTemplate: key => game.user.isGM && game.settings.set(ID, 'templates', set('templates').filter(x => x.key !== key)) };
   game.socket.on(`module.${ID}`, ({ action, id, data, user }) => {

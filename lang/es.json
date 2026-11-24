@@ -137,6 +137,8 @@
       "languageHint": "Selecciona el idioma de Passive Income MGK (Auto usa el de Foundry).",
       "auto": "Avanzar automático con Simple Calendar",
       "autoHint": "Cada periodo transcurrido cobra ingresos y tira eventos.",
+      "calendarPlayers": "Mostrar calendario chico a jugadores al entrar",
+      "calendarPlayersHint": "Abre el Simple Calendar compacto a los usuarios no GM al conectarse.",
       "periodDays": "Periodo (días del calendario)",
       "periodDaysHint": "",
       "currency": "Etiqueta de moneda",
